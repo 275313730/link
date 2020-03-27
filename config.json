@@ -1,0 +1,4 @@
+{
+    "publicPath": "./src",
+    "entry": "app.js"
+}

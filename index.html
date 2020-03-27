@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow-x: hidden;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .text {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18.7vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .red {
+            color: red;
+        }
+
+        .bgColor {
+            background-color: rgb(250, 245, 201);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div @for="(number,index) in text.page1" @click="change(index)">
+            <div class="text" @class="red:isRed,isBg()">number:{{number}}</div>
+        </div>
+        <div class="text" @class="red:isRed,isBg()" @click="test()">test:{{name}}</div>
+    </div>
+</body>
+<script src="main.js"></script>
+
+</html>
