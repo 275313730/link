@@ -29,17 +29,21 @@
         .bgColor {
             background-color: rgb(250, 245, 201);
         }
+
+        #test{
+            position: relative;
+        }
     </style>
 </head>
 
 <body>
     <div id="app">
-        <div class="text bgColor" @class="red:isRed" @for="(number,index) in text.number" @click="test(index)">
-            test:{{number}}</div>
-        <div class="text" @class="red:isRed,bgColor:isBg" @click="pop()">
-            test:{{text.number}}</div>
+        <div class="text red" id="test" @click="test(this)">{{text}}</div>
     </div>
 </body>
-<script src="main.js"></script>
+
+<script src="./modules/Link.js"></script>
+<script src="./modules//link-animate.js"></script>
+<script src="app.js"></script>
 
 </html>
