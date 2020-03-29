@@ -1,31 +1,31 @@
-const link = require('../modules/link.js')
+const Link = require('../modules/Link.js')
 
-new link({
+new Link({
     el: "app",
     data: {
         text: {
-            page1: [1, 2, 3],
-            page2: "b",
-            page3: "c",
-            page4: "d"
+            number: [1, 2, 3],
         },
-        isRed: true
-    },
-    computed: {
-        name() {
-            return this.data.text.page2 + 'a'
-        }
+        isRed: true,
+        isBg: true
     },
     methods: {
-        change(index) {
-            this.data.text.page1[index] = Math.round(Math.random() * 10)
+        test(index) {
+            let number = this.data.text.number[index]
+            this.data.text.number.push(number)
+            if (this.data.text.number.length > 5) {
+                this.data.isBg = false
+            } else {
+                this.data.isBg = true
+            }
         },
-        isBg() {
-            return 'bgColor'
-        },
-        test() {
-            this.data.text.page2 = "c"
-            console.log(this.data.text.page2)
+        pop() {
+            this.data.text.number.pop()
+            if (this.data.text.number.length > 5) {
+                this.data.isBg = false
+            } else {
+                this.data.isBg = true
+            }
         }
     }
 })
