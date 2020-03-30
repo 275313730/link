@@ -1,31 +1,54 @@
 class Animate {
-    static move(node, x, y, time, interval, callback) {
-        interval = interval < 10 ? 10 : interval
-        let count = 0
-        let _x = x / (time / interval)
-        let _y = y / (time / interval)
-        let left = node.style.left.replace('px', '')
-        if (left !== "") {
-            left = Number(left)
-        } else {
-            left = 0
+    static move(options, callback) {
+        if (Animate.moving) { return }
+        Animate.moving = true
+        let node = options.node,
+            translateX = options.left,
+            translateY = options.top,
+            position = options.position,
+            time = options.time,
+            interval = options.interval
+        if (interval == null || interval == undefined) {
+            interval = Animate.defaultInterval
         }
-        let top = node.style.top.replace('px', '')
-        if (top !== "") {
-            top = Number(top)
-        } else {
-            top = 0
+        if (interval < 16 && interval > 0) {
+            interval = 16
         }
-        let timer = setInterval(() => {
-            count++
-            node.style.left = left + (_x * count) + 'px'
-            node.style.top = top + (_y * count) + 'px'
-            if (interval * count >= time) {
-                clearInterval(timer)
+        let left = node.offsetLeft,
+            top = node.offsetTop
+        if (position == 'absolute') {
+            translateX -= left
+            translateY -= top
+        }
+        if (interval === 0) {
+            setTimeout(() => {
+                node.style.left = left + translateX + 'px'
+                node.style.top = top + translateY + 'px'
                 if (callback) {
                     callback()
                 }
-            }
-        }, interval)
+                Animate.moving = false
+            }, time);
+        } else {
+            let count = 0,
+                perX = translateX / (time / interval),
+                perY = translateY / (time / interval)
+            let timer = setInterval(() => {
+                if (interval * count >= time) {
+                    clearInterval(timer)
+                    if (callback) {
+                        callback()
+                    }
+                    Animate.moving = false
+                    return
+                }
+                count++
+                node.style.left = left + (perX * count) + 'px'
+                node.style.top = top + (perY * count) + 'px'
+            }, interval)
+        }
     }
 }
+
+Animate.defaultInterval = 16
+Animate.moving = false
