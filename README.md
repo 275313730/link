@@ -1,4 +1,5 @@
 link是一种MVVM框架，包含了三个模块：数据(Data),响应(Respond),视图(View)。
+
 link的工作流程为：
 一、创建一个link实例，并传入参数(options)。
 二、link实例接受到参数后会劫持数据(Data)，使其响应化(defineProperty)。
