@@ -12,6 +12,7 @@
             user-select: none;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
         }
 
         .text {
@@ -20,6 +21,7 @@
             align-items: center;
             font-size: 18.7vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
         }
 
         .red {
@@ -29,22 +31,20 @@
         .bgColor {
             background-color: rgb(250, 245, 201);
         }
-
-        #test{
-            position: relative;
-            top: 200px;
-        }
     </style>
 </head>
 
 <body>
     <div id="app">
-        <div class="text red" id="test" @click="test(this)">{{text}}</div>
+        <router-link to='home'><button>home</button></router-link>
+        <router-link to='foo'><button>foo</button></router-link>
+        <router-view></router-view>
     </div>
 </body>
 
-<script src="./modules/Link.js"></script>
-<script src="./modules//link-animate.js"></script>
+<script src="/modules/Link.js"></script>
+<script src="/modules/link-router.js"></script>
+<script src="/modules//link-animate.js"></script>
 <script src="app.js"></script>
 
 </html>

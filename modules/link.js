@@ -1,74 +1,101 @@
+"use strict";
 class Link {
     constructor(options) {
-        this.el = options.el
-        this.app = document.getElementById(this.el)
-        this.data = options.data
-        this.methods = options.methods
-        this.computed = options.computed
-        this.views = []
+        this.__app__ = document.getElementById(options.el)
+        this.__data__ = options.data
+        this.__methods__ = options.methods
+        this.__computed__ = options.computed
+        this.__views__ = []
         this.init()
     }
 
     //初始化
     init() {
-        this.arrayProto()
+        this.arrayReconstruct()
         this.methodsExpose()
         this.computedExpose()
-        if (this.data) {
+        if (this.__data__) {
             new Data(this)
-            new View(this, this.app)
+            this.dataExpose()
+            new View(this, this.__app__)
             this.viewInit()
         }
     }
 
     //数组方法改写
-    arrayProto() {
-        let link = this
-        let protoNameList = ['push', 'pop', 'shift', 'unshift']
-        protoNameList.forEach(proto => {
-            let arrayProto = []
-            arrayProto.push(Array.prototype[proto])
-            Array.prototype[`link${proto}`] = arrayProto[0]
-            arrayProto = null
+    arrayReconstruct() {
+        let link = this,
+            arrayProto = Array.prototype,
+            arrayMethods = Object.create(arrayProto),
+            methodsList = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse']
+        methodsList.forEach(method => {
+            const original = arrayMethods[method]
+            Array.prototype[method] = function (...args) {
+                const result = original.apply(this, args)
+                if (this.__ob__) {
+                    if (method === 'push' || method === 'unshift') {
+                        for (let i = 0; i < args.length; i++) {
+                            let currentIndex = this.length - args.length + i
+                            Data.defineProperty(link, this, currentIndex, this[currentIndex])
+                        }
+                    } else if (method === 'splice') {
+                        let currentLength = -args[1],
+                            items = []
+                        args.forEach((arg, index) => {
+                            if (index >= 2) {
+                                items.push(arg)
+                                currentLength++
+                            }
+                        })
+                        if (currentLength > 0) {
+                            for (let i = 0; i < items.length; i++) {
+                                let currentIndex = this.length - items.length + i
+                                Data.defineProperty(link, this, currentIndex, this[currentIndex])
+                            }
+                        }
+                    }
+                }
+                link.viewInit(link)
+                return result
+            }
         })
-        Array.prototype.push = function (value) {
-            this.linkpush(value)
-            Data.defineProperty(link, this, this.length - 1, value)
-            link.viewInit(link)
-        }
-        Array.prototype.pop = function () {
-            this.linkpop()
-            link.viewInit(link)
-        }
     }
 
-    //将methods暴露到this中，便于调用方法和数据
-    methodsExpose() {
-        for (const key in this.methods) {
-            if (this.methods.hasOwnProperty(key)) {
-                const value = this.methods[key];
+    //将data暴露到this中
+    dataExpose() {
+        for (const key in this.__data__) {
+            if (this.__data__.hasOwnProperty(key)) {
+                const value = this.__data__[key];
                 this[key] = value
             }
         }
-        delete this.methods
+    }
+
+    //将methods暴露到this中
+    methodsExpose() {
+        for (const key in this.__methods__) {
+            if (this.__methods__.hasOwnProperty(key)) {
+                const value = this.__methods__[key];
+                this[key] = value
+            }
+        }
     }
 
     //将computed加入data中
     computedExpose() {
-        for (const key in this.computed) {
-            if (this.computed.hasOwnProperty(key)) {
-                const value = this.computed[key];
+        for (const key in this.__computed__) {
+            if (this.__computed__.hasOwnProperty(key)) {
+                const value = this.__computed__[key];
                 this[key] = value
-                this.data[key] = this[key]()
+                this.__data__[key] = this[key]()
             }
         }
-        delete this.computed
     }
 
     //页面刷新
     viewInit(link) {
         link = link || this
-        link.views.forEach(view => {
+        link.__views__.forEach(view => {
             if (view.type === 'node') {
                 Respond.viewNodeChange(link, view)
             } else if (view.type === 'mustache' || view.type === 'link') {
@@ -89,34 +116,16 @@ class Link {
         return data
     }
 
-    //设置data
-    dataSet(data, keyArr, value) {
-        keyArr.forEach((key, index) => {
-            if (index === keyArr.length - 1) {
-                data[key] = value
-            } else {
-                data = data[key]
-            }
-        })
-    }
-
     //通过dataTypes数组来获取mustache语法表达式的值
     dataTypesGet(link, dataTypes) {
         let value = null
         dataTypes.forEach(dataType => {
-            let _value = link.dataGet(link.data, dataType.split('.'))
+            let _value = link.dataGet(link.__data__, dataType.split('.'))
+            dataType = isNaN(Number(dataType)) ? dataType : Number(dataType)
             if (value === null || value === undefined) {
-                if (_value === undefined) {
-                    value = (isNaN(Number(dataType)) ? dataType : Number(dataType))
-                } else {
-                    value = _value || ""
-                }
+                value = _value === undefined ? dataType : (_value || "")
             } else {
-                if (_value === undefined) {
-                    value += (isNaN(Number(dataType)) ? dataType : Number(dataType))
-                } else {
-                    value += _value || ""
-                }
+                value += _value === undefined ? dataType : (_value || "")
             }
         });
         return value
@@ -127,7 +136,7 @@ class Link {
 class Data {
     constructor(link) {
         this.link = link
-        this.defineReactive(link.data)
+        this.defineReactive(link.__data__)
     }
 
     defineReactive(data) {
@@ -141,6 +150,7 @@ class Data {
     }
 
     static defineProperty(link, data, key, value) {
+        data.__ob__ = true
         Object.defineProperty(data, key, {
             get() {
                 return value
@@ -151,7 +161,7 @@ class Data {
                     Respond.notify(link, key)
                 }
             },
-            enumerable: true,
+            enumerable: typeof (data) === 'object' ? true : false,
             configurable: true,
         })
         link.__proto__.viewInit(link)
@@ -164,8 +174,8 @@ class View {
         this.link = link
         this.fn = link.__proto__
         this.node = node
-        this.data = link.data
-        this.views = link.views
+        this.data = link.__data__
+        this.views = link.__views__
         this.nodeTraversal(this.node)
     }
 
@@ -174,16 +184,15 @@ class View {
     //在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     static viewSet(options, link) {
         let exist = false
-        link.views.forEach(view => {
+        link.__views__.forEach(view => {
             if (view.node == options.node && view.type == options.type) {
                 exist = true
             }
         })
         if (!exist) {
-            link.views.linkpush(options)
+            link.__views__.push(options)
         }
     }
-
 
     //node遍历
     nodeTraversal(node) {
@@ -206,7 +215,7 @@ class View {
                 let eventArr = []
                 this.events.forEach(event => {
                     if (child.getAttribute(event)) {
-                        eventArr.linkpush(event)
+                        eventArr.push(event)
                     }
                 })
                 if (eventArr.length > 0) {
@@ -222,10 +231,9 @@ class View {
     //绑定@for语法
     forBind(node) {
         //获取@for内容
-        let attr = node.getAttribute('@for')
-        //获取左右侧内容(通过in分割)
-        let matches = attr.match(/(.+)in(.+)/)
-        let subType = matches[1].match(/\((.+)\)/),
+        let attr = node.getAttribute('@for'),
+            matches = attr.match(/(.+)in(.+)/),
+            subType = matches[1].match(/\((.+)\)/),
             dataType = matches[2].trim(),
             index = false
         //判断左侧内容是否包含多个参数
@@ -237,9 +245,9 @@ class View {
         }
         node.removeAttribute('@for')
         //复制一个新的节点
-        let newNode = node.cloneNode()
+        let newNode = node.cloneNode(),
+            thisNode = node
         newNode.innerHTML = node.innerHTML
-        let thisNode = node
         thisNode.innerHTML = thisNode.innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
         if (index) {
             thisNode.setAttribute('index', 0)
@@ -249,7 +257,8 @@ class View {
 
     //绑定mustache语法
     mustacheBind(node) {
-        const mustaches = this.link.app.innerText.match(/(\{\{.+?\}\})/g)
+        const mustaches = this.link.__app__.innerText.match(/(\{\{.+?\}\})/g)
+        if (!mustaches) { return }
         mustaches.forEach(mustache => {
             let data = node.data.replace(/[\r\n]/g, "").trim()
             if (data == "" && data.indexOf(mustache) == -1 && data.match(mustache) == null) { return }
@@ -271,17 +280,18 @@ class View {
 
     //绑定link语法
     linkBind(node) {
-        let attr = node.getAttribute('@link')
-        let dataTypes = attr.split('+')
-        let value = null
+        let data = this.link.__data__,
+            attr = node.getAttribute('@link'),
+            dataTypes = attr.split('+'),
+            value = null
         if (dataTypes.length === 1) {
             value = this.fn.dataGet(this.data, dataTypes[0].split('.'))
         } else {
             dataTypes.forEach(dataType => {
                 if (value === null) {
-                    value = this.fn.dataGet(this.link.data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
+                    value = this.fn.dataGet(data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
                 } else {
-                    value += this.fn.dataGet(this.link.data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
+                    value += this.fn.dataGet(data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
                 }
             })
         }
@@ -290,10 +300,17 @@ class View {
         }
         //input双向绑定
         if (node.tagName === 'INPUT') {
-            node.value = value
+            node.value = isNaN(Number(value)) ? value : Number(value)
             node.addEventListener('input', () => {
-                let _value = isNaN(Number(node.value)) ? node.value : Number(node.value)
-                this.fn.dataSet(this.link.data, attr.split('.'), _value)
+                let _value = node.value,
+                    keyArr = attr.split('.')
+                keyArr.forEach((key, index) => {
+                    if (index === keyArr.length - 1) {
+                        data[key] = _value
+                    } else {
+                        data = data[key]
+                    }
+                })
             })
         } else {
             node.innerText = value
@@ -304,16 +321,13 @@ class View {
 
     //绑定@class语法
     classBind(node) {
-        let attr = node.getAttribute('@class')
-        let thisClass = node.getAttribute('class')
-        View.viewSet({ node: node, template: attr, class: thisClass, type: 'class' }, this.link)
+        View.viewSet({ node: node, template: node.getAttribute('@class'), class: node.getAttribute('class'), type: 'class' }, this.link)
         node.removeAttribute('@class')
     }
 
     //绑定@style语法
     styleBind(node) {
-        let attr = node.getAttribute('@style')
-        let template = (node.getAttribute('style') || "") + attr
+        template = (node.getAttribute('style') || "") + node.getAttribute('@style')
         View.viewSet({ node: node, template: template, type: 'style' }, this.link)
         node.removeAttribute('@style')
     }
@@ -324,8 +338,8 @@ class View {
         eventArr.forEach(event => {
             let matches = node.getAttribute(event).match(/(.+)\((.*)\)/)
             if (matches === null) { return }
-            let fn = matches[1]
-            let args = matches[2]
+            let fn = matches[1],
+                args = matches[2]
             event = event.slice(1)
             if (args.match(/event/)) {
                 node.addEventListener(event, function (args) {
@@ -341,7 +355,7 @@ class View {
                     link[fn](index)
                 })
             } else {
-                node.addEventListener(event, function () {
+                node.addEventListener(event, () => {
                     link[fn](args)
                 })
             }
@@ -355,38 +369,44 @@ class View {
 class Respond {
     //通知分发
     static notify(link, key) {
-        link.views.forEach(view => {
-            if (view.template.match(key)) {
-                if (view.type == 'link' || view.type == 'mustache') {
-                    this.viewDataChange(link, view)
-                } else if (view.type == 'class') {
-                    this.viewClassChange(link, view)
-                } else if (view.type == 'style') {
-                    this.viewStyleChange(link, view)
-                } else if (view.type == 'node') {
-                    this.viewNodeChange(link, view)
-                }
+        link.__views__.forEach(view => {
+            if (!(view.template.match(key))) { return }
+            if (view.type == 'link' || view.type == 'mustache') {
+                this.viewDataChange(link, view)
+            } else if (view.type == 'class') {
+                this.viewClassChange(link, view)
+            } else if (view.type == 'style') {
+                this.viewStyleChange(link, view)
+            } else if (view.type == 'node') {
+                this.viewNodeChange(link, view)
             }
+
         })
     }
 
     //改变页面节点
     static viewNodeChange(link, thisView) {
-        let value = link.__proto__.dataGet(link.data, thisView.template.split('.'))
+        let proto = link.__proto__,
+            data = link.__data__,
+            views = link.__views__
+        let value = proto.dataGet(data, thisView.template.split('.'))
         while (value.length > thisView.attr.length) {
+            //复制节点
             let newNode = thisView.attr.nodeTemplate.cloneNode()
             newNode.innerHTML = thisView.attr.nodeTemplate.innerHTML
+            //插入节点
             thisView.node.parentNode.insertBefore(newNode, thisView.node.nextSibling)
             thisView.node = newNode
+            //替换模板内容
             thisView.node.innerHTML = thisView.node.innerHTML.replace(`{{${thisView.attr.subType}}}`, `{{${thisView.template}.${thisView.attr.length}}}`)
             if (thisView.attr.index) {
                 thisView.node.setAttribute('index', thisView.attr.length)
             }
             thisView.attr.length++
-            for (let i = 0; i < link.views.length; i++) {
-                const view = link.views[i];
+            for (let i = 0; i < views.length; i++) {
+                const view = views[i];
                 if (view.type == "node") {
-                    link.views.splice(i, 1)
+                    views.splice(i, 1)
                     i--
                 }
             }
@@ -394,15 +414,15 @@ class Respond {
             View.viewSet(thisView, link)
         }
         while (value.length < thisView.attr.length) {
-            for (let i = 0; i < link.views.length; i++) {
-                const view = link.views[i];
+            for (let i = 0; i < views.length; i++) {
+                const view = views[i];
                 if (thisView.node == view.node) {
-                    link.views.splice(i, 1)
+                    views.splice(i, 1)
                     i--
                 }
             }
-            let prevNode = thisView.node.previousSibling
-            let thisNode = thisView.node
+            let prevNode = thisView.node.previousSibling,
+                thisNode = thisView.node
             thisNode.parentNode.removeChild(thisNode)
             thisView.node = prevNode
             thisView.attr.length--
@@ -412,11 +432,11 @@ class Respond {
 
     //改变页面数据
     static viewDataChange(link, thisView) {
-        let text = thisView.template
-        let mustaches = text.match(/\{\{(.+?)\}\}/g)
+        let text = thisView.template,
+            mustaches = text.match(/\{\{(.+?)\}\}/g)
         mustaches.forEach(mustache => {
-            let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split('+')
-            let value = link.__proto__.dataTypesGet(link, dataTypes)
+            let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split('+'),
+                value = link.__proto__.dataTypesGet(link, dataTypes)
             if (mustache === value) { return }
             text = text.replace(mustache, value)
         })
@@ -434,34 +454,24 @@ class Respond {
 
     //改变页面class
     static viewClassChange(link, thisView) {
-        let node = thisView.node
-        let classArr = thisView.template.split(',')
-        let className = thisView.class
+        let node = thisView.node,
+            classArr = thisView.template.split(','),
+            className = thisView.class,
+            proto = link.__proto__,
+            data = link.__data__
         classArr.forEach(cs => {
-            let boolean = false
-            let thisClassName = ""
-            //判断是否为对象表达式
-            let matches = cs.split(':')
+            let boolean, thisClassName = "",
+                matches = cs.split(':')
             if (matches.length === 1) {
                 //判断是否为函数
                 let fn = cs.match(/(.*)\(.*\)/)
-                if (fn) {
-                    thisClassName = link[fn[1]](fn[2])
-                } else {
-                    thisClassName = link.__proto__.dataGet(link.data, cs.split('.'))
-                }
-                if (thisClassName) {
-                    boolean = true
-                }
+                thisClassName = fn ? link[fn[1]](fn[2]) : proto.dataGet(data, cs.split('.'))
+                boolean = thisClassName ? true : false
             } else {
                 thisClassName = matches[0].trim()
-                let dataType = matches[1].trim()
-                let fn = dataType.match(/(.*)\(.*\)/)
-                if (fn) {
-                    boolean = link[fn[1]](fn[2])
-                } else {
-                    boolean = link.__proto__.dataGet(link.data, dataType.split('.'))
-                }
+                let dataType = matches[1].trim(),
+                    fn = dataType.match(/(.*)\(.*\)/)
+                boolean = fn ? link[fn[1]](fn[2]) : proto.dataGet(data, dataType.split('.'))
             }
             //修改className
             if (boolean) {
@@ -473,20 +483,18 @@ class Respond {
 
     //改变页面style
     static viewStyleChange(link, thisView) {
-        let node = thisView.node
-        let styleArr = thisView.template.split(';')
+        let node = thisView.node,
+            styleArr = thisView.template.split(';'),
+            proto = link.__proto__,
+            data = link.__data__
         styleArr.forEach(style => {
             if (style == null || style == undefined || style == "") { return }
             let matches = style.split(':'),
                 styleName = matches[0].trim(),
-                dataType = matches[1]
+                dataType = matches[1],
+                method = dataType.match(/(.*)\(.*\)/)
             //判断是否为函数
-            if (dataType.match(/\(.*\)/) != null) {
-                let method = dataType.match(/(.*)\(.*\)/)
-                node.style[styleName] = link[method[1]](method[2])
-            } else {
-                node.style[styleName] = link.__proto__.dataGet(link.data, dataType.split('.'))
-            }
+            node.style[styleName] = method ? link[method[1]](method[2]) : proto.dataGet(data, dataType.split('.'))
         })
     }
 }
