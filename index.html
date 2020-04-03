@@ -42,6 +42,18 @@
     </div>
 </body>
 
+<template name='home'>
+    <div id='home'>
+        <div class="text red bgColor" @click="test(this)" link="text"></div>
+    </div>
+</template>
+
+<template name='foo'>
+    <div id='foo'>
+        <div class="text red bgColor" @for="number in text" @click="test()">{{number}}</div>
+    </div>
+</template>
+
 <script src="/modules/Link.js"></script>
 <script src="/modules/link-router.js"></script>
 <script src="/modules//link-animate.js"></script>

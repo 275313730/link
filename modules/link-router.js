@@ -1,50 +1,45 @@
 "use strict";
 class Router {
     constructor(options) {
-        this.el = options.el;
-        this.mode = options.mode;
-        this.routes = options.routes;
-        this.absolutePath = window.location.pathname;
+        this.root = document.getElementById(options.el)
+        this.routes = options.routes
         this.data = null
         this.link = null
-        this.node = null;
-        this.bindEvents();
-        this.pushHistory('home');
+        this.node = null
+        this.init()
+        this.pushHistory(this.routes[0].path)
     }
-    bindEvents() {
-        window.addEventListener('popstate', () => { this.pushHistory(window.location.hash); });
-        let links = document.getElementsByTagName('router-link');
-        links.forEach(link => {
-            link.addEventListener('click', () => this.pushHistory(links[i].getAttribute('to')));
+    init() {
+        this.routes.forEach(route => {
+            route.template = document.getElementsByName(route.component.template)[0].innerHTML
         })
+        window.addEventListener('popstate', () => this.pushHistory(window.location.hash.slice(1)));
+        let links = this.root.getElementsByTagName('router-link');
+        for (const link of links) {
+            link.addEventListener('click', () => this.pushHistory(link.getAttribute('to')));
+        }
     }
     pushHistory(path) {
-        if (this.isInitialize && `#${path}` === window.history.state.path) {
-            return;
-        }
         this.routes.forEach(route => {
             if (route.path === path) {
                 this.data = route
                 window.history.replaceState(route.template, route.path, `#${route.path}`);
             }
         });
-        this.update();
-    }
-    update() {
         if (!this.link) {
-            let view = document.getElementsByTagName('router-view')[0];
+            let view = this.root.getElementsByTagName('router-view')[0];
             view.outerHTML = window.history.state;
         }
         else {
             this.node.outerHTML = window.history.state;
         }
+        if (this.link) { this.link.destroy() }
+        this.link = null
         this.link = new Link(this.data.component)
-        let nodes = document.getElementsByTagName('div');
-        for (let i = 0; i < nodes.length; i++) {
-            if (nodes[i].id === this.data.path) {
-                this.node = nodes[i];
-                break;
+        this.root.childNodes.forEach(child => {
+            if (child.nodeType === 1 && child.getAttribute('Id') === this.data.path) {
+                this.node = child
             }
-        }
+        })
     }
 }

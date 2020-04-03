@@ -1,5 +1,6 @@
 const home = {
     el: "home",
+    template: 'home',
     data: {
         text: [1, 2],
     },
@@ -19,30 +20,36 @@ const home = {
 
 const foo = {
     el: "foo",
+    template: 'foo',
     data: {
         text: [1, 2],
     },
+    mounted() {
+        this.test()
+    },
+    updated() {
+        console.log(new Date().toLocaleDateString())
+    },
+    beforeDestroy() {
+        console.log('ready to leave foo')
+    },
+    destroyed() {
+        console.log('leave')
+    },
     methods: {
         test() {
-            this.text.push(3)
+            this.text.push(this.text.length + 1)
         },
     }
 }
 
 new Router({
     el: 'app',
-    mode: 'history',
     routes: [{
         path: 'home',
         component: home,
-        template: `<div id='home'>
-                <div class="text red bgColor" @click="test(this)">{{text}}</div>
-        </div>`
     }, {
         path: 'foo',
         component: foo,
-        template: `<div id='foo'>
-                <div class="text red bgColor" @for="number in text" @click="test()">{{number}}</div>
-            </div>`
     }]
 })

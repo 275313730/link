@@ -1,10 +1,14 @@
 "use strict";
 class Link {
     constructor(options) {
-        this.__app__ = document.getElementById(options.el)
+        this.__node__ = document.getElementById(options.el)
+        this.__template__ = options.template
         this.__data__ = options.data
         this.__methods__ = options.methods
-        this.__computed__ = options.computed
+        this.__mounted__ = options.mounted
+        this.__updated__ = options.updated
+        this.__beforeDestroy__ = options.beforeDestroy
+        this.__destroyed__ = options.destroyed
         this.__views__ = []
         this.init()
     }
@@ -12,14 +16,26 @@ class Link {
     //初始化
     init() {
         this.arrayReconstruct()
+        new Data(this)
+        this.dataExpose()
         this.methodsExpose()
-        this.computedExpose()
-        if (this.__data__) {
-            new Data(this)
-            this.dataExpose()
-            new View(this, this.__app__)
-            this.viewInit()
-        }
+        this.__mounted__ && this.__mounted__()
+        new View(this, this.__node__)
+        this.viewInit()
+    }
+
+    //销毁
+    destroy() {
+        this.__beforeDestroy__ && this.__beforeDestroy__()
+        this.__updated__ = null
+        this.__node__ = null
+        this.__data__ = null
+        this.__methods__ = null
+        this.__mounted__ = null
+        this.__views__ = []
+        this.__beforeDestroy__ = null
+        this.__destroyed__ && this.__destroyed__()
+        this.__destroyed__ = null
     }
 
     //数组方法改写
@@ -64,31 +80,16 @@ class Link {
     //将data暴露到this中
     dataExpose() {
         for (const key in this.__data__) {
-            if (this.__data__.hasOwnProperty(key)) {
-                const value = this.__data__[key];
-                this[key] = value
-            }
+            const value = this.__data__[key];
+            this[key] = value
         }
     }
 
     //将methods暴露到this中
     methodsExpose() {
         for (const key in this.__methods__) {
-            if (this.__methods__.hasOwnProperty(key)) {
-                const value = this.__methods__[key];
-                this[key] = value
-            }
-        }
-    }
-
-    //将computed加入data中
-    computedExpose() {
-        for (const key in this.__computed__) {
-            if (this.__computed__.hasOwnProperty(key)) {
-                const value = this.__computed__[key];
-                this[key] = value
-                this.__data__[key] = this[key]()
-            }
+            const value = this.__methods__[key];
+            this[key] = value
         }
     }
 
@@ -120,14 +121,9 @@ class Link {
     dataTypesGet(link, dataTypes) {
         let value = null
         dataTypes.forEach(dataType => {
-            let _value = link.dataGet(link.__data__, dataType.split('.'))
-            dataType = isNaN(Number(dataType)) ? dataType : Number(dataType)
-            if (value === null || value === undefined) {
-                value = _value === undefined ? dataType : (_value || "")
-            } else {
-                value += _value === undefined ? dataType : (_value || "")
-            }
-        });
+            let _value = link.dataGet(link.__data__, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
+            value = (value === null || value === undefined) ? _value : value + _value
+        })
         return value
     }
 }
@@ -136,7 +132,7 @@ class Link {
 class Data {
     constructor(link) {
         this.link = link
-        this.defineReactive(link.__data__)
+        link.__data__ && this.defineReactive(link.__data__)
     }
 
     defineReactive(data) {
@@ -156,15 +152,14 @@ class Data {
                 return value
             },
             set(newValue) {
-                if (value !== newValue) {
-                    value = newValue
-                    Respond.notify(link, key)
-                }
+                if (value === newValue) { return }
+                value = newValue
+                Respond.notify(link, key)
+                link.__updated__ && link.__updated__()
             },
             enumerable: typeof (data) === 'object' ? true : false,
             configurable: true,
         })
-        link.__proto__.viewInit(link)
     }
 }
 
@@ -172,8 +167,8 @@ class Data {
 class View {
     constructor(link, node) {
         this.link = link
-        this.fn = link.__proto__
         this.node = node
+        this.fn = link.__proto__
         this.data = link.__data__
         this.views = link.__views__
         this.nodeTraversal(this.node)
@@ -183,15 +178,13 @@ class View {
 
     //在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     static viewSet(options, link) {
-        let exist = false
-        link.__views__.forEach(view => {
+        //判断节点是否存在
+        for (const view of link.__views__) {
             if (view.node == options.node && view.type == options.type) {
-                exist = true
+                return
             }
-        })
-        if (!exist) {
-            link.__views__.push(options)
         }
+        link.__views__.push(options)
     }
 
     //node遍历
@@ -231,8 +224,7 @@ class View {
     //绑定@for语法
     forBind(node) {
         //获取@for内容
-        let attr = node.getAttribute('@for'),
-            matches = attr.match(/(.+)in(.+)/),
+        let matches = node.getAttribute('@for').match(/(.+)in(.+)/),
             subType = matches[1].match(/\((.+)\)/),
             dataType = matches[2].trim(),
             index = false
@@ -257,8 +249,8 @@ class View {
 
     //绑定mustache语法
     mustacheBind(node) {
-        const mustaches = this.link.__app__.innerText.match(/(\{\{.+?\}\})/g)
-        if (!mustaches) { return }
+        const mustaches = this.node.innerText.match(/(\{\{.+?\}\})/g)
+        if (mustaches === null) { return }
         mustaches.forEach(mustache => {
             let data = node.data.replace(/[\r\n]/g, "").trim()
             if (data == "" && data.indexOf(mustache) == -1 && data.match(mustache) == null) { return }
@@ -281,7 +273,7 @@ class View {
     //绑定link语法
     linkBind(node) {
         let data = this.link.__data__,
-            attr = node.getAttribute('@link'),
+            attr = node.getAttribute('link'),
             dataTypes = attr.split('+'),
             value = null
         if (dataTypes.length === 1) {
@@ -295,7 +287,7 @@ class View {
                 }
             })
         }
-        if (!value) {
+        if (value === null || value === undefined) {
             throw new Error(`${attr} is not defined`)
         }
         //input双向绑定
@@ -316,18 +308,21 @@ class View {
             node.innerText = value
         }
         View.viewSet({ node: node, template: `{{${attr}}}`, type: 'link' }, this.link)
-        node.removeAttribute('@link')
+        node.removeAttribute('link')
     }
 
     //绑定@class语法
     classBind(node) {
-        View.viewSet({ node: node, template: node.getAttribute('@class'), class: node.getAttribute('class'), type: 'class' }, this.link)
+        let className = node.getAttribute('class')
+        View.viewSet({
+            node: node, template: node.getAttribute('@class'), attr: { class: className }, type: 'class'
+        }, this.link)
         node.removeAttribute('@class')
     }
 
     //绑定@style语法
     styleBind(node) {
-        template = (node.getAttribute('style') || "") + node.getAttribute('@style')
+        let template = (node.getAttribute('style') || "") + node.getAttribute('@style')
         View.viewSet({ node: node, template: template, type: 'style' }, this.link)
         node.removeAttribute('@style')
     }
@@ -362,7 +357,6 @@ class View {
             node.removeAttribute(`@${event}`)
         })
     }
-
 }
 
 //响应
@@ -370,7 +364,7 @@ class Respond {
     //通知分发
     static notify(link, key) {
         link.__views__.forEach(view => {
-            if (!(view.template.match(key))) { return }
+            if (view.template.match(key) == null) { return }
             if (view.type == 'link' || view.type == 'mustache') {
                 this.viewDataChange(link, view)
             } else if (view.type == 'class') {
@@ -380,7 +374,6 @@ class Respond {
             } else if (view.type == 'node') {
                 this.viewNodeChange(link, view)
             }
-
         })
     }
 
@@ -388,8 +381,8 @@ class Respond {
     static viewNodeChange(link, thisView) {
         let proto = link.__proto__,
             data = link.__data__,
-            views = link.__views__
-        let value = proto.dataGet(data, thisView.template.split('.'))
+            views = link.__views__,
+            value = proto.dataGet(data, thisView.template.split('.'))
         while (value.length > thisView.attr.length) {
             //复制节点
             let newNode = thisView.attr.nodeTemplate.cloneNode()
@@ -411,7 +404,6 @@ class Respond {
                 }
             }
             new View(link, thisView.node.parentNode)
-            View.viewSet(thisView, link)
         }
         while (value.length < thisView.attr.length) {
             for (let i = 0; i < views.length; i++) {
@@ -426,8 +418,9 @@ class Respond {
             thisNode.parentNode.removeChild(thisNode)
             thisView.node = prevNode
             thisView.attr.length--
-            View.viewSet(thisView, link)
         }
+        View.viewSet(thisView, link)
+        link.__updated__ && link.__updated__()
     }
 
     //改变页面数据
@@ -456,7 +449,7 @@ class Respond {
     static viewClassChange(link, thisView) {
         let node = thisView.node,
             classArr = thisView.template.split(','),
-            className = thisView.class,
+            className = thisView.attr.class,
             proto = link.__proto__,
             data = link.__data__
         classArr.forEach(cs => {
