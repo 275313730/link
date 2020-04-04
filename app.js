@@ -4,6 +4,9 @@ const home = {
     data: {
         text: [1, 2],
     },
+    mounted() {
+        this.text[0] = 3
+    },
     methods: {
         test(node) {
             Animate.transfrom({
