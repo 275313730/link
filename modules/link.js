@@ -13,29 +13,19 @@ class Link {
         this.init()
     }
 
+    /*
+        Common Module
+    */`
+
     //初始化
     init() {
         this.arrayReconstruct()
-        this.defineReactive(this.__data__)
+        this.dataTraversal(this.__data__)
         this.dataExpose()
         this.methodsExpose()
         this.__mounted__ && this.__mounted__()
         this.nodeTraversal(this.__node__)
         this.notify(this)
-    }
-
-    //销毁
-    destroy() {
-        this.__beforeDestroy__ && this.__beforeDestroy__()
-        this.__updated__ = null
-        this.__node__ = null
-        this.__data__ = null
-        this.__methods__ = null
-        this.__mounted__ = null
-        this.__views__ = []
-        this.__beforeDestroy__ = null
-        this.__destroyed__ && this.__destroyed__()
-        this.__destroyed__ = null
     }
 
     //数组方法改写
@@ -55,23 +45,14 @@ class Link {
                             link.defineProperty(link, this, currentIndex, this[currentIndex])
                         }
                     } else if (method === 'splice') {
-                        let currentLength = -args[1],
-                            items = []
-                        args.forEach((arg, index) => {
-                            if (index >= 2) {
-                                items.push(arg)
-                                currentLength++
-                            }
-                        })
-                        if (currentLength > 0) {
-                            for (let i = 0; i < items.length; i++) {
-                                let currentIndex = this.length - items.length + i
-                                link.defineProperty(link, this, currentIndex, this[currentIndex])
-                            }
+                        let currentLength = -args[1] + args.length - 1
+                        for (let i = 0; i < currentLength - 1; i++) {
+                            let currentIndex = this.length + i
+                            link.defineProperty(link, this, currentIndex, this[currentIndex])
                         }
                     }
                 }
-                link.notify(link)
+                link.notify()
                 return result
             }
         })
@@ -93,21 +74,36 @@ class Link {
         }
     }
 
+    //销毁
+    destroy() {
+        this.__beforeDestroy__ && this.__beforeDestroy__()
+        this.__updated__ = null
+        this.__node__ = null
+        this.__data__ = null
+        this.__methods__ = null
+        this.__mounted__ = null
+        this.__views__ = []
+        this.__beforeDestroy__ = null
+        this.__destroyed__ && this.__destroyed__()
+        this.__destroyed__ = null
+    }
+
     /*
         Data Module
      */
 
-    defineReactive(data) {
+    //遍历data
+    dataTraversal(data) {
         for (const key of Object.keys(data)) {
             let value = data[key]
             this.defineProperty(this, data, key, value)
             if (data[key] instanceof Object) {
-                this.defineReactive(data[key])
+                this.dataTraversal(data[key])
             }
         }
     }
 
-    //link是必须的
+    //定义data的setter和getter
     defineProperty(link, data, key, value) {
         data.__ob__ = true
         Object.defineProperty(data, key, {
@@ -133,7 +129,7 @@ class Link {
         return data
     }
 
-    //通过dataTypes数组来获取mustache语法表达式的值
+    //通过dataTypes数组来获取表达式的值
     dataTypesGet(dataTypes) {
         let value = null
         dataTypes.forEach(dataType => {
@@ -147,7 +143,11 @@ class Link {
         View Module
     */
 
+    //声明语法事件
     events = ["@click", "@dblclick", "@mouseover", "@mouseleave", "@mouseenter", "@mouseup", "@mousedown", "@mousemove", "@mouseout", "@keydown", "@keyup", "@keypress", "@select", "@change", "@focus", "@submit", "@input", "@copy", "@cut", "@paste", "@drag", "@drop", "@dragover", "@dragend", "@dragstart", "@dragleave", "@dragenter"]
+
+    //声明语法属性
+    attributes = ['@for', 'link', '@class', '@style']
 
     //在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     viewSet(options) {
@@ -166,18 +166,12 @@ class Link {
         //匹配语法
         for (let child of childNodes) {
             if (child.nodeType === 1) {
-                if (child.getAttribute('@for')) {
-                    this.forBind(child)
-                }
-                if (child.getAttribute("Link")) {
-                    this.linkBind(child)
-                }
-                if (child.getAttribute('@class')) {
-                    this.classBind(child)
-                }
-                if (child.getAttribute('@style')) {
-                    this.styleBind(child)
-                }
+                this.attributes.forEach(value => {
+                    if (child.getAttribute(value)) {
+                        value = value.replace('@', '')
+                        this[`${value}Bind`](child)
+                    }
+                })
                 let eventArr = []
                 this.events.forEach(event => {
                     if (child.getAttribute(event)) {
@@ -210,10 +204,12 @@ class Link {
         }
         node.removeAttribute('@for')
         //复制一个新的节点
-        let newNode = node.cloneNode(),
-            thisNode = node
+        let thisNode = node,
+            newNode = node.cloneNode()
         newNode.innerHTML = node.innerHTML
-        thisNode.innerHTML = thisNode.innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
+        while (thisNode.innerHTML != thisNode.innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)) {
+            thisNode.innerHTML = thisNode.innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
+        }
         if (index) {
             thisNode.setAttribute('index', 0)
         }
@@ -222,11 +218,11 @@ class Link {
 
     //绑定mustache语法
     mustacheBind(node) {
-        const mustaches = this.__node__.innerText.match(/(\{\{.+?\}\})/g)
+        let text = node.data,
+            mustaches = text.match(/(\{\{.+?\}\})/g)
         if (mustaches === null) { return }
         mustaches.forEach(mustache => {
-            let data = node.data.replace(/[\r\n]/g, "").trim()
-            if (data == "" && data.indexOf(mustache) == -1 && data.match(mustache) == null) { return }
+            if (text.indexOf(mustache) == -1 && text.match(mustache) == null) { return }
             let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split('+')
             dataTypes.forEach(dataType => {
                 let typeArr = dataType.split('.')
@@ -237,33 +233,30 @@ class Link {
                     }
                 })
                 typeArr = typeArr.join('.')
-                data = data.replace(dataType, typeArr)
+                text = text.replace(dataType, typeArr)
             })
-            this.viewSet({ node: node, template: data, type: "Mustache" })
         });
+        this.viewSet({ node: node, template: text, type: "Mustache" })
     }
 
     //绑定link语法
     linkBind(node) {
         let data = this.__data__,
-            attr = node.getAttribute("Link"),
+            attr = node.getAttribute("link"),
             dataTypes = attr.split('+'),
             value = null
         if (dataTypes.length === 1) {
             value = this.dataGet(data, dataTypes[0].split('.'))
         } else {
             dataTypes.forEach(dataType => {
-                if (value === null) {
-                    value = this.dataGet(data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
-                } else {
-                    value += this.dataGet(data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
-                }
+                let _value = this.dataGet(data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
+                value = value === null ? _value : value + _value
             })
         }
         if (value === null || value === undefined) {
             throw new Error(`${attr} is not defined`)
         }
-        //input双向绑定
+        //判断tagName
         if (node.tagName === 'INPUT') {
             node.value = isNaN(Number(value)) ? value : Number(value)
             node.addEventListener('input', () => {
@@ -281,22 +274,20 @@ class Link {
             node.innerText = value
         }
         this.viewSet({ node: node, template: `{{${attr}}}`, type: "Link" })
-        node.removeAttribute("Link")
+        node.removeAttribute("link")
     }
 
     //绑定@class语法
     classBind(node) {
-        let className = node.getAttribute("Class")
         this.viewSet({
-            node: node, template: node.getAttribute('@class'), attr: { class: className }, type: "Class"
+            node: node, template: node.getAttribute('@class'), attr: { class: node.getAttribute("class") }, type: "Class"
         })
         node.removeAttribute('@class')
     }
 
     //绑定@style语法
     styleBind(node) {
-        let template = (node.getAttribute("Style") || "") + node.getAttribute('@style')
-        this.viewSet({ node: node, template: template, type: "Style" })
+        this.viewSet({ node: node, template: (node.getAttribute("style") || "") + node.getAttribute('@style'), type: "Style" })
         node.removeAttribute('@style')
     }
 
@@ -309,6 +300,7 @@ class Link {
             let fn = matches[1],
                 args = matches[2]
             event = event.slice(1)
+            //判断传入参数
             if (args.match(/event/)) {
                 node.addEventListener(event, function (args) {
                     link[fn](args)
@@ -338,26 +330,28 @@ class Link {
     //通知分发
     notify(key) {
         this.__views__.forEach(view => {
-            if (view.template.match(key) == null && key) { return }
+            if (key && view.template.match(key) == null) { return }
             this[`view${view.type}Change`](view)
         })
     }
 
     //改变页面节点
     viewNodeChange(thisView) {
-        let proto = this.__proto__,
-            data = this.__data__,
-            views = this.__views__,
-            value = proto.dataGet(data, thisView.template.split('.'))
+        let views = this.__views__,
+            value = this.dataGet(this.__data__, thisView.template.split('.'))
         while (value.length > thisView.attr.length) {
             //复制节点
             let newNode = thisView.attr.nodeTemplate.cloneNode()
             newNode.innerHTML = thisView.attr.nodeTemplate.innerHTML
             //插入节点
             thisView.node.parentNode.insertBefore(newNode, thisView.node.nextSibling)
+            //更新当前节点
             thisView.node = newNode
-            //替换模板内容
-            thisView.node.innerHTML = thisView.node.innerHTML.replace(`{{${thisView.attr.subType}}}`, `{{${thisView.template}.${thisView.attr.length}}}`)
+            //replaceAll
+            while (thisView.node.innerHTML != thisView.node.innerHTML.replace(`{{${thisView.attr.subType}}}`, `{{${thisView.template}.${thisView.attr.length}}}`)
+            ) {
+                thisView.node.innerHTML = thisView.node.innerHTML.replace(`{{${thisView.attr.subType}}}`, `{{${thisView.template}.${thisView.attr.length}}}`)
+            }
             if (thisView.attr.index) {
                 thisView.node.setAttribute('index', thisView.attr.length)
             }
@@ -390,8 +384,22 @@ class Link {
         this.__updated__ && this.__updated__()
     }
 
-    //改变页面数据
-    viewDataChange(thisView) {
+    //改变页面mustache
+    viewMustacheChange(thisView) {
+        thisView.node.data = this.replaceText(thisView)
+    }
+
+    //改变页面link
+    viewLinkChange(thisView) {
+        if (thisView.node.nodeName === 'INPUT') {
+            thisView.node.value = this.replaceText(thisView)
+        } else {
+            thisView.node.innerText = this.replaceText(thisView)
+        }
+    }
+
+    //替换语法模板
+    replaceText(thisView) {
         let text = thisView.template,
             mustaches = text.match(/\{\{(.+?)\}\}/g)
         mustaches.forEach(mustache => {
@@ -403,55 +411,39 @@ class Link {
         return text
     }
 
-    //改变页面mustache
-    viewMustacheChange(thisView) {
-        thisView.node.data = this.viewDataChange(thisView)
-    }
-
-    //改变页面link
-    viewLinkChange(thisView) {
-        if (thisView.node.nodeName === 'INPUT') {
-            thisView.node.value = this.viewDataChange(thisView)
-        } else {
-            thisView.node.innerText = this.viewDataChange(thisView)
-        }
-    }
-
     //改变页面class
     viewClassChange(thisView) {
-        let node = thisView.node,
-            classArr = thisView.template.split(','),
-            className = thisView.attr.class,
-            proto = this.__proto__,
-            data = this.__data__
+        //拆分class
+        let classArr = thisView.template.split(','),
+            className = thisView.attr.class
         classArr.forEach(cs => {
-            let boolean, thisClassName = "",
+            let boolean,
+                thisClassName = "",
                 matches = cs.split(':')
+            //判断是否为对象语法
             if (matches.length === 1) {
                 //判断是否为函数
                 let fn = cs.match(/(.*)\(.*\)/)
-                thisClassName = fn ? this[fn[1]](fn[2]) : proto.dataGet(data, cs.split('.'))
+                thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.__data__, cs.split('.'))
                 boolean = thisClassName ? true : false
             } else {
                 thisClassName = matches[0].trim()
                 let dataType = matches[1].trim(),
                     fn = dataType.match(/(.*)\(.*\)/)
-                boolean = fn ? this[fn[1]](fn[2]) : proto.dataGet(data, dataType.split('.'))
+                boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.__data__, dataType.split('.'))
             }
             //修改className
             if (boolean) {
                 className += ` ${thisClassName}`
             }
         })
-        node.className = className
+        thisView.node.className = className
     }
 
     //改变页面style
     viewStyleChange(thisView) {
-        let node = thisView.node,
-            styleArr = thisView.template.split(';'),
-            proto = this.__proto__,
-            data = this.__data__
+        //拆分style
+        let styleArr = thisView.template.split(';')
         styleArr.forEach(style => {
             if (style == null || style == undefined || style == "") { return }
             let matches = style.split(':'),
@@ -459,10 +451,7 @@ class Link {
                 dataType = matches[1],
                 method = dataType.match(/(.*)\(.*\)/)
             //判断是否为函数
-            node.style[styleName] = method ? this[method[1]](method[2]) : proto.dataGet(data, dataType.split('.'))
+            thisView.node.style[styleName] = method ? this[method[1]](method[2]) : this.dataGet(this.__data__, dataType.split('.'))
         })
     }
 }
-
-
-

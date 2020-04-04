@@ -5,7 +5,7 @@ const home = {
         text: [1, 2],
     },
     mounted() {
-        this.text[0] = 3
+        this.text[0] = 5
     },
     methods: {
         test(node) {
