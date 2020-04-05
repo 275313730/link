@@ -11,7 +11,9 @@ class Router {
     }
     init() {
         this.routes.forEach(route => {
-            route.template = document.getElementsByName(route.component.template)[0].innerHTML
+            let template = document.getElementsByName(route.component.el)[0]
+            route.template = template.innerHTML
+            template.parentNode.removeChild(template)
         })
         window.addEventListener('popstate', () => this.pushHistory(window.location.hash.slice(1)));
         let links = this.root.getElementsByTagName('router-link');

@@ -15,48 +15,85 @@
             overflow-x: hidden;
         }
 
-        .text {
+        .container {
             display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 18.7vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: auto;
+            margin-bottom: 20px;
             position: relative;
+            width: 30vw;
+            flex-flow: row wrap;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .red {
+        .grid {
+            flex: 0 0 33%;
+            box-sizing: border-box;
+            font-size: 5em;
+            height: 10vw;
+            line-height: 10vw;
+            margin: 0.5px;
+            border: 2px solid black;
+        }
+
+        nav {
+            font-size: 1.5em;
+            text-align: center;
+            margin: auto;
+            position: relative;
+            margin-bottom: 5px;
+        }
+
+        .reset {
+            font-size: 1.5em;
+            width: 100%;
+            height: 100%;
+            padding: 5px;
+            cursor: pointer;
+            border: 3px solid black;
+        }
+
+        .reset:hover {
+            background-color: black;
+            color: white;
+        }
+
+        router-link:hover {
+            cursor: pointer;
             color: red;
-        }
-
-        .bgColor {
-            background-color: rgb(250, 245, 201);
         }
     </style>
 </head>
 
 <body>
     <div id="app">
-        <router-link to='home'><button>home</button></router-link>
-        <router-link to='foo'><button>foo</button></router-link>
+        <div link="str" style="text-align: center;font-size: 2em;font-weight: bold;"></div>
+        <nav>
+            <router-link to='game'>game</router-link> |
+            <router-link to='history'>history</router-link>
+        </nav>
         <router-view></router-view>
     </div>
 </body>
 
-<template name='home'>
-    <div id='home'>
-        <div class="text red bgColor" @click="test(this)" link="text"></div>
+<template name='game'>
+    <div id='game' style="margin: auto;position: relative;text-align: center;">
+        <div class="container">
+            <div class="grid" @for="(value,index) in arr" @click='print(index)'>
+                {{value}}
+            </div>
+        </div>
+        <a class="reset" @click="reset()">reset</a>
     </div>
 </template>
 
-<template name='foo'>
-    <div id='foo'>
-        <div class="text red bgColor" @for="number in text" @click="test()">{{number}}</div>
+<template name='history'>
+    <div id='history' style="position: relative;text-align: center;margin: auto;font-size: 5vh;">
+        <div @for="number in text" @click="push()">{{number}}</div>
     </div>
 </template>
 
 <script src="/modules/Link.js"></script>
 <script src="/modules/link-router.js"></script>
-<script src="/modules//link-animate.js"></script>
 <script src="app.js"></script>
 
 </html>

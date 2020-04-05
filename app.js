@@ -1,58 +1,86 @@
-const home = {
-    el: "home",
-    template: 'home',
-    data: {
-        text: [1, 2],
+const game = {
+    el: "game",
+    data() {
+        return {
+            arr: [],
+            isX: true,
+            winner: null,
+            jugdeArr: [[1, 4, 7], [2, 5, 8], [3, 6, 9], [1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 5, 9], [3, 5, 7]]
+        }
     },
     mounted() {
-        this.text[0] = 5
+        for (let i = 0; i < 9; i++) {
+            this.arr.push('')
+        }
     },
     methods: {
-        test(node) {
-            Animate.transfrom({
-                node: node,
-                time: 2000,
-                top: 200,
-                opacity: 0
-            }, () => {
-                node.style.display = 'none'
-            })
+        print(index) {
+            if (this.winner) {
+                alert(`${this.winner} is win!`)
+                return
+            }
+            if (this.arr[index] === '') {
+                this.arr[index] = this.isX ? 'X' : 'O'
+                this.isX = !this.isX
+                this.cal()
+            }
         },
+        cal() {
+            for (const indexArr of this.jugdeArr) {
+                let val1 = this.arr[indexArr[0] - 1],
+                    val2 = this.arr[indexArr[1] - 1],
+                    val3 = this.arr[indexArr[2] - 1]
+                if (val1 !== '' && val1 === val2 && val2 === val3) {
+                    this.winner = val1
+                    app.data.history.push(`${this.winner} is win!`)
+                    alert(`${this.winner} is win!`)
+                    return
+                }
+            }
+        },
+        reset() {
+            this.winner = null
+            this.isX = true
+            for (const key in this.arr) {
+                this.arr[key] = ''
+            }
+        }
     }
 }
 
-const foo = {
-    el: "foo",
-    template: 'foo',
-    data: {
-        text: [1, 2],
+const history = {
+    el: "history",
+    data() {
+        return {
+            text: [],
+        }
     },
     mounted() {
-        this.test()
-    },
-    updated() {
-        console.log(new Date().toLocaleDateString())
-    },
-    beforeDestroy() {
-        console.log('ready to leave foo')
-    },
-    destroyed() {
-        console.log('leave')
-    },
-    methods: {
-        test() {
-            this.text.push(this.text.length + 1)
-        },
+        app.data.history.forEach(value => {
+            this.text.push(value)
+        });
     }
 }
 
-new Router({
-    el: 'app',
+const router = {
     routes: [{
-        path: 'home',
-        component: home,
+        path: 'game',
+        component: game,
     }, {
-        path: 'foo',
-        component: foo,
+        path: 'history',
+        component: history,
     }]
+}
+
+const app = new Link({
+    el: 'app',
+    data() {
+        return {
+            str: 'Tic-Tac-Toe',
+            history: []
+        }
+    },
+    router
 })
+
+

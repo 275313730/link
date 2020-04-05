@@ -1,36 +1,44 @@
 "use strict";
 class Link {
     constructor(options) {
-        this.__node__ = document.getElementById(options.el)
-        this.__template__ = options.template
-        this.__data__ = options.data
-        this.__methods__ = options.methods
-        this.__mounted__ = options.mounted
-        this.__updated__ = options.updated
-        this.__beforeDestroy__ = options.beforeDestroy
-        this.__destroyed__ = options.destroyed
-        this.__views__ = []
+        this.el = options.el
+        this.node = document.getElementById(options.el)
+        this.template = options.template || null
+        this.data = (options.data && options.data()) || null
+        this.methods = options.methods || null
+        this.mounted = options.mounted || null
+        this.updated = options.updated || null
+        this.beforeDestroy = options.beforeDestroy || null
+        this.destroyed = options.destroyed || null
+        this.router = options.router || null
+        this.views = []
+        //link是暴露到this中的data和methods
+        this.link = {}
         this.init()
     }
 
     /*
         Common Module
-    */`
+    */
 
     //初始化
     init() {
         this.arrayReconstruct()
-        this.dataTraversal(this.__data__)
-        this.dataExpose()
-        this.methodsExpose()
-        this.__mounted__ && this.__mounted__()
-        this.nodeTraversal(this.__node__)
+        this.data && this.dataTraversal(this.data)
+        this.data && this.dataExpose()
+        this.methods && this.methodsExpose()
+        this.mounted && this.mounted.call(this.link)
+        this.nodeTraversal(this.node)
         this.notify(this)
+        if (this.router) {
+            this.router.el = this.el
+            new Router(this.router)
+        }
     }
 
     //数组方法改写
     arrayReconstruct() {
-        let link = this,
+        let _this = this,
             arrayProto = Array.prototype,
             arrayMethods = Object.create(arrayProto),
             methodsList = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse']
@@ -42,17 +50,17 @@ class Link {
                     if (method === 'push' || method === 'unshift') {
                         for (let i = 0; i < args.length; i++) {
                             let currentIndex = this.length - args.length + i
-                            link.defineProperty(link, this, currentIndex, this[currentIndex])
+                            _this.defineProperty(_this, this, currentIndex, this[currentIndex])
                         }
                     } else if (method === 'splice') {
                         let currentLength = -args[1] + args.length - 1
                         for (let i = 0; i < currentLength - 1; i++) {
                             let currentIndex = this.length + i
-                            link.defineProperty(link, this, currentIndex, this[currentIndex])
+                            _this.defineProperty(_this, this, currentIndex, this[currentIndex])
                         }
                     }
                 }
-                link.notify()
+                _this.notify()
                 return result
             }
         })
@@ -60,37 +68,38 @@ class Link {
 
     //将data暴露到this中
     dataExpose() {
-        for (const key in this.__data__) {
-            const value = this.__data__[key];
-            this[key] = value
+        for (const key in this.data) {
+            const value = this.data[key];
+            this.link[key] = value
         }
     }
 
     //将methods暴露到this中
     methodsExpose() {
-        for (const key in this.__methods__) {
-            const value = this.__methods__[key];
-            this[key] = value
+        for (const key in this.methods) {
+            const value = this.methods[key];
+            this.link[key] = value
         }
     }
 
     //销毁
     destroy() {
-        this.__beforeDestroy__ && this.__beforeDestroy__()
-        this.__updated__ = null
-        this.__node__ = null
-        this.__data__ = null
-        this.__methods__ = null
-        this.__mounted__ = null
-        this.__views__ = []
-        this.__beforeDestroy__ = null
-        this.__destroyed__ && this.__destroyed__()
-        this.__destroyed__ = null
+        this.beforeDestroy && this.beforeDestroy.call(this.link)
+        this.updated = null
+        this.node = null
+        this.data = null
+        this.link = null
+        this.methods = null
+        this.mounted = null
+        this.views = []
+        this.beforeDestroy = null
+        this.destroyed && this.destroyed.call(this.link)
+        this.destroyed = null
     }
 
     /*
         Data Module
-     */
+    */
 
     //遍历data
     dataTraversal(data) {
@@ -98,13 +107,17 @@ class Link {
             let value = data[key]
             this.defineProperty(this, data, key, value)
             if (data[key] instanceof Object) {
-                this.dataTraversal(data[key])
+                if (data[key].length === 0) {
+                    data[key].__ob__ = true
+                } else {
+                    this.dataTraversal(data[key])
+                }
             }
         }
     }
 
     //定义data的setter和getter
-    defineProperty(link, data, key, value) {
+    defineProperty(_this, data, key, value) {
         data.__ob__ = true
         Object.defineProperty(data, key, {
             get() {
@@ -113,8 +126,8 @@ class Link {
             set(newValue) {
                 if (value === newValue) { return }
                 value = newValue
-                link.notify(link, key)
-                link.__updated__ && link.__updated__()
+                _this.notify(key)
+                _this.updated && _this.updated()
             },
             enumerable: typeof (data) === 'object' ? true : false,
             configurable: true,
@@ -133,7 +146,7 @@ class Link {
     dataTypesGet(dataTypes) {
         let value = null
         dataTypes.forEach(dataType => {
-            let _value = this.dataGet(this.__data__, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
+            let _value = this.dataGet(this.data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
             value = (value === null || value === undefined) ? _value : value + _value
         })
         return value
@@ -152,12 +165,12 @@ class Link {
     //在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     viewSet(options) {
         //判断节点是否存在
-        for (const view of this.__views__) {
+        for (const view of this.views) {
             if (view.node == options.node && view.type == options.type) {
                 return
             }
         }
-        this.__views__.push(options)
+        this.views.push(options)
     }
 
     //node遍历
@@ -241,7 +254,7 @@ class Link {
 
     //绑定link语法
     linkBind(node) {
-        let data = this.__data__,
+        let data = this.data,
             attr = node.getAttribute("link"),
             dataTypes = attr.split('+'),
             value = null
@@ -293,7 +306,7 @@ class Link {
 
     //绑定events语法
     eventsBind(node, eventArr) {
-        let link = this
+        let _this = this.link
         eventArr.forEach(event => {
             let matches = node.getAttribute(event).match(/(.+)\((.*)\)/)
             if (matches === null) { return }
@@ -303,20 +316,20 @@ class Link {
             //判断传入参数
             if (args.match(/event/)) {
                 node.addEventListener(event, function (args) {
-                    link[fn](args)
+                    _this[fn](args)
                 })
             } else if (args.match(/this/)) {
                 node.addEventListener(event, function (args) {
-                    link[fn](args.target)
+                    _this[fn](args.target)
                 })
             } else if (args.match(/index/) && node.getAttribute('index')) {
                 node.addEventListener(event, function () {
                     let index = node.getAttribute('index')
-                    link[fn](index)
+                    _this[fn](index)
                 })
             } else {
                 node.addEventListener(event, () => {
-                    link[fn](args)
+                    _this[fn](args)
                 })
             }
             node.removeAttribute(`@${event}`)
@@ -329,7 +342,7 @@ class Link {
 
     //通知分发
     notify(key) {
-        this.__views__.forEach(view => {
+        this.views.forEach(view => {
             if (key && view.template.match(key) == null) { return }
             this[`view${view.type}Change`](view)
         })
@@ -337,8 +350,8 @@ class Link {
 
     //改变页面节点
     viewNodeChange(thisView) {
-        let views = this.__views__,
-            value = this.dataGet(this.__data__, thisView.template.split('.'))
+        let views = this.views,
+            value = this.dataGet(this.data, thisView.template.split('.'))
         while (value.length > thisView.attr.length) {
             //复制节点
             let newNode = thisView.attr.nodeTemplate.cloneNode()
@@ -367,6 +380,7 @@ class Link {
             this.nodeTraversal(thisView.node.parentNode)
         }
         while (value.length < thisView.attr.length) {
+            //解绑视图节点
             for (let i = 0; i < views.length; i++) {
                 const view = views[i];
                 if (thisView.node == view.node) {
@@ -381,7 +395,7 @@ class Link {
             thisView.attr.length--
         }
         this.viewSet(thisView)
-        this.__updated__ && this.__updated__()
+        this.updated && this.updated()
     }
 
     //改变页面mustache
@@ -405,8 +419,11 @@ class Link {
         mustaches.forEach(mustache => {
             let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split('+'),
                 value = this.dataTypesGet(dataTypes)
-            if (mustache === value) { return }
-            text = text.replace(mustache, value)
+            if (mustache === `{{${value}}}`) {
+                text = text.replace(mustache, '')
+            } else {
+                text = text.replace(mustache, value)
+            }
         })
         return text
     }
@@ -424,13 +441,13 @@ class Link {
             if (matches.length === 1) {
                 //判断是否为函数
                 let fn = cs.match(/(.*)\(.*\)/)
-                thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.__data__, cs.split('.'))
+                thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.data, cs.split('.'))
                 boolean = thisClassName ? true : false
             } else {
                 thisClassName = matches[0].trim()
                 let dataType = matches[1].trim(),
                     fn = dataType.match(/(.*)\(.*\)/)
-                boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.__data__, dataType.split('.'))
+                boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.data, dataType.split('.'))
             }
             //修改className
             if (boolean) {
@@ -451,7 +468,7 @@ class Link {
                 dataType = matches[1],
                 method = dataType.match(/(.*)\(.*\)/)
             //判断是否为函数
-            thisView.node.style[styleName] = method ? this[method[1]](method[2]) : this.dataGet(this.__data__, dataType.split('.'))
+            thisView.node.style[styleName] = method ? this[method[1]](method[2]) : this.dataGet(this.data, dataType.split('.'))
         })
     }
 }
