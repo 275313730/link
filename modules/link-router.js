@@ -8,7 +8,7 @@ class Router {
         this.node = null
         this.init()
     }
-    
+
     init() {
         this.getTemplate()
         this.bindEvents()
@@ -17,7 +17,7 @@ class Router {
 
     getTemplate() {
         this.routes.forEach(route => {
-            const template = document.getElementsByName(route.component.el)[0]
+            const template = document.getElementById(route.component.el)
             route.template = template.innerHTML
             template.parentNode.removeChild(template)
         })

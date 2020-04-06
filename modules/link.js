@@ -163,7 +163,7 @@ class Link {
     events = ["@click", "@dblclick", "@mouseover", "@mouseleave", "@mouseenter", "@mouseup", "@mousedown", "@mousemove", "@mouseout", "@keydown", "@keyup", "@keypress", "@select", "@change", "@focus", "@submit", "@input", "@copy", "@cut", "@paste", "@drag", "@drop", "@dragover", "@dragend", "@dragstart", "@dragleave", "@dragenter"]
 
     //声明语法属性
-    attributes = ['@for', 'link', '@class', '@style']
+    attributes = ['@for', '@link', '@class', '@style']
 
     //在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     viewSet(options) {
@@ -182,13 +182,8 @@ class Link {
         //匹配语法
         for (let child of childNodes) {
             if (child.nodeType === 1) {
-                if (this.components) {
-                    let id = child.getAttribute('Id')
-                    for (const child of this.components) {
-                        if (child.el === id) {
-                            return
-                        }
-                    }
+                if (this.ignoreCpnNode(child)) {
+                    return
                 }
                 this.normalMatch(child)
                 this.eventMatch(child)
@@ -197,6 +192,18 @@ class Link {
             }
             if (child.childNodes != null) {
                 this.nodeTraversal(child)
+            }
+        }
+    }
+
+    //跳过子组件节点
+    ignoreCpnNode(child) {
+        if (this.components) {
+            let id = child.getAttribute('Id')
+            for (const child of this.components) {
+                if (child.el === id) {
+                    return true
+                }
             }
         }
     }
@@ -287,7 +294,7 @@ class Link {
     //绑定link语法
     linkBind(node) {
         let data = this.link,
-            attr = node.getAttribute("link"),
+            attr = node.getAttribute("@link"),
             dataTypes = attr.split('+'),
             value = null
         if (dataTypes.length === 1) {
@@ -319,7 +326,7 @@ class Link {
             node.innerText = value
         }
         this.viewSet({ node: node, template: `{{${attr}}}`, type: "link" })
-        node.removeAttribute("link")
+        node.removeAttribute("@link")
     }
 
     //绑定@class语法
@@ -338,6 +345,12 @@ class Link {
 
     //绑定events语法
     eventsBind(node, event) {
+        this.eventListen(node, event)
+        node.removeAttribute(event)
+    }
+
+    //添加监听事件
+    eventListen(node, event) {
         let _this = this.link,
             matches = node.getAttribute(event).match(/(.+)\((.*)\)/),
             fn = matches[1],
@@ -348,21 +361,17 @@ class Link {
             node.addEventListener(event, function (args) {
                 _this[fn](args)
             })
-        } else if (args.match(/this/)) {
-            node.addEventListener(event, function (args) {
-                _this[fn](args.target)
-            })
         } else if (args.match(/index/) && node.getAttribute('index')) {
             let index = node.getAttribute('index')
+            args = args.replace('index', index)
             node.addEventListener(event, function () {
-                _this[fn](index)
+                _this[fn](args)
             })
         } else {
             node.addEventListener(event, () => {
                 _this[fn](args)
             })
         }
-        node.removeAttribute(`@${event}`)
     }
 
     /*
@@ -377,10 +386,21 @@ class Link {
         })
     }
 
-    //改变页面节点
+    //渲染页面节点
     nodeRender(thisView) {
-        let views = this.views,
-            value = this.dataGet(this.link, thisView.template.split('.'))
+        let value = this.dataGet(this.link, thisView.template.split('.'))
+        if (value.length > thisView.props.length) {
+            this.nodePlus(thisView, value)
+        } else if (value.length < thisView.props.length) {
+            this.nodeReduce(thisView, value)
+        }
+        this.viewSet(thisView)
+        this.updated && this.updated()
+    }
+
+    //节点添加
+    nodePlus(thisView, value) {
+        let views = this.views
         while (value.length > thisView.props.length) {
             //复制节点
             let nodeTemplate = thisView.props.nodeTemplate,
@@ -409,6 +429,11 @@ class Link {
             }
             this.nodeTraversal(thisView.node.parentNode)
         }
+    }
+
+    //节点减少
+    nodeReduce(thisView, value) {
+        let views = this.views
         while (value.length < thisView.props.length) {
             //解绑视图节点
             for (let i = 0; i < views.length; i++) {
@@ -424,16 +449,14 @@ class Link {
             thisView.node = prevNode
             thisView.props.length--
         }
-        this.viewSet(thisView)
-        this.updated && this.updated()
     }
 
-    //改变页面mustache
+    //渲染页面mustache
     mustacheRender(thisView) {
         thisView.node.data = this.replaceText(thisView)
     }
 
-    //改变页面link
+    //渲染页面link
     linkRender(thisView) {
         if (thisView.node.nodeName === 'INPUT') {
             thisView.node.value = this.replaceText(thisView)
@@ -442,7 +465,7 @@ class Link {
         }
     }
 
-    //替换语法模板
+    //替换模板内容
     replaceText(thisView) {
         let text = thisView.template,
             mustaches = text.match(/\{\{(.+?)\}\}/g)
@@ -458,7 +481,7 @@ class Link {
         return text
     }
 
-    //改变页面class
+    //渲染页面class
     classRender(thisView) {
         //拆分class
         let classArr = thisView.template.split(','),
@@ -468,16 +491,26 @@ class Link {
                 thisClassName = "",
                 matches = cs.split(':')
             //判断是否为对象语法
+            //对象语法的key=className,value=boolean
+            //非对象语法直接获取变量值作为className,boolean根据className取值
             if (matches.length === 1) {
                 //判断是否为函数
                 let fn = cs.match(/(.*)\(.*\)/)
-                thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.link, cs.split('.'))
+                if (fn != null) {
+                    thisClassName = this[fn[1]](fn[2])
+                } else {
+                    thisClassName = this.dataGet(this.link, cs.split('.'))
+                }
                 boolean = thisClassName ? true : false
             } else {
                 thisClassName = matches[0].trim()
                 let dataType = matches[1].trim(),
                     fn = dataType.match(/(.*)\(.*\)/)
-                boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.link, dataType.split('.'))
+                if (fn != null) {
+                    boolean = this[fn[1]](fn[2])
+                } else {
+                    boolean = this.dataGet(this.link, dataType.split('.'))
+                }
             }
             //修改className
             if (boolean) {
@@ -487,7 +520,7 @@ class Link {
         thisView.node.className = className
     }
 
-    //改变页面style
+    //渲染页面style
     styleRender(thisView) {
         //拆分style
         let styleArr = thisView.template.split(';')
@@ -498,7 +531,11 @@ class Link {
                 dataType = matches[1],
                 method = dataType.match(/(.*)\(.*\)/)
             //判断是否为函数
-            thisView.node.style[styleName] = method ? this[method[1]](method[2]) : this.dataGet(this.link, dataType.split('.'))
+            if (method != null) {
+                thisView.node.style[styleName] = this[method[1]](method[2])
+            } else {
+                thisView.node.style[styleName] = this.dataGet(this.link, dataType.split('.'))
+            }
         })
     }
 }

@@ -35,12 +35,22 @@
             border: 2px solid black;
         }
 
+        #str {
+            text-align: center;
+            font-size: 2em;
+            font-weight: bold;
+        }
+
         nav {
             font-size: 1.5em;
             text-align: center;
             margin: auto;
             position: relative;
             margin-bottom: 5px;
+        }
+
+        .reset-wrapper {
+            margin-bottom: 25px;
         }
 
         .reset {
@@ -61,12 +71,32 @@
             cursor: pointer;
             color: red;
         }
+
+        #game {
+            margin: auto;
+            position: relative;
+            text-align: center;
+        }
+
+        #history {
+            position: relative;
+            text-align: center;
+            margin: auto;
+            font-size: 3vh;
+        }
+
+        #score {
+            position: relative;
+            text-align: center;
+            margin: auto;
+            font-size: 5vh;
+        }
     </style>
 </head>
 
 <body>
     <div id="app">
-        <div link="str" style="text-align: center;font-size: 2em;font-weight: bold;"></div>
+        <div @link="str" id="str"></div>
         <nav>
             <router-link to='game'>game</router-link> |
             <router-link to='score'>score</router-link>
@@ -75,24 +105,24 @@
     </div>
 </body>
 
-<template name='game'>
-    <div id='game' style="margin: auto;position: relative;text-align: center;">
+<template id='game'>
+    <div id='game'>
         <div class="container">
             <div class="grid" @for="(value,index) in arr" @click='print(index)'>
                 {{value}}
             </div>
         </div>
-        <div style="margin-bottom: 25px;">
+        <div class="reset-wrapper">
             <a class="reset" @click="reset()">reset</a>
         </div>
-        <div id='history' style="position: relative;text-align: center;margin: auto;font-size: 3vh;">
+        <div id='history'>
             <div @for="(value,index) in history" @click="jump(index)">{{value}}</div>
         </div>
     </div>
 </template>
 
-<template name='score'>
-    <div id='score' style="position: relative;text-align: center;margin: auto;font-size: 5vh;">
+<template id='score'>
+    <div id='score'>
         <div>X win:{{X}}</div>
         <div>O win:{{O}}</div>
     </div>
