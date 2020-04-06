@@ -49,18 +49,7 @@ class Link {
             Array.prototype[method] = function (...args) {
                 const result = original.apply(this, args)
                 if (this.__ob__) {
-                    if (method === 'push' || method === 'unshift') {
-                        for (let i = 0; i < args.length; i++) {
-                            let currentIndex = this.length - args.length + i
-                            _this.dataTraversal(this[currentIndex])
-                        }
-                    } else if (method === 'splice') {
-                        let currentLength = -args[1] + args.length - 1
-                        for (let i = 0; i < currentLength - 1; i++) {
-                            let currentIndex = this.length + i
-                            _this.dataTraversal(this[currentIndex])
-                        }
-                    }
+                    _this.dataTraversal(this)
                 }
                 _this.notify()
                 return result
