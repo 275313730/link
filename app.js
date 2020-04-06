@@ -1,16 +1,41 @@
-const game = {
-    el: "game",
+const history = {
+    el: "history",
     data() {
         return {
-            arr: [],
-            isX: true,
-            winner: null,
-            jugdeArr: [[1, 4, 7], [2, 5, 8], [3, 6, 9], [1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 5, 9], [3, 5, 7]]
+            history: []
         }
     },
     mounted() {
-        for (let i = 0; i < 9; i++) {
-            this.arr.push('')
+        this.history = this.parent.history
+    },
+    methods: {
+        jump(index) {
+            if (Number(index) === this.history.length - 1) {
+                return
+            }
+            this.parent.arr = Object.assign([], this.history[index])
+            index = Number(index) + 1
+            this.parent.history.splice(index, this.history.length - index)
+            if (index % 2 === 1) {
+                this.parent.isX = false
+            } else {
+                this.parent.isX = true
+            }
+            this.parent.winner = null
+        }
+    }
+}
+
+const game = {
+    el: "game",
+    components: [history],
+    data() {
+        return {
+            arr: ['', '', '', '', '', '', '', '', ''],
+            isX: true,
+            winner: null,
+            jugdeArr: [[1, 4, 7], [2, 5, 8], [3, 6, 9], [1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 5, 9], [3, 5, 7]],
+            history: []
         }
     },
     methods: {
@@ -22,6 +47,7 @@ const game = {
             if (this.arr[index] === '') {
                 this.arr[index] = this.isX ? 'X' : 'O'
                 this.isX = !this.isX
+                this.history.push(Object.assign([], this.arr))
                 this.cal()
             }
         },
@@ -32,7 +58,7 @@ const game = {
                     val3 = this.arr[indexArr[2] - 1]
                 if (val1 !== '' && val1 === val2 && val2 === val3) {
                     this.winner = val1
-                    app.data.history.push(`${this.winner} is win!`)
+                    app.data.score[this.winner]++
                     alert(`${this.winner} is win!`)
                     return
                 }
@@ -44,21 +70,22 @@ const game = {
             for (const key in this.arr) {
                 this.arr[key] = ''
             }
+            this.history.splice(0, this.history.length)
         }
     }
 }
 
-const history = {
-    el: "history",
+const score = {
+    el: "score",
     data() {
         return {
-            text: [],
+            X: 0,
+            O: 0
         }
     },
     mounted() {
-        app.data.history.forEach(value => {
-            this.text.push(value)
-        });
+        this.X = app.data.score.X
+        this.O = app.data.score.O
     }
 }
 
@@ -67,8 +94,8 @@ const router = {
         path: 'game',
         component: game,
     }, {
-        path: 'history',
-        component: history,
+        path: 'score',
+        component: score,
     }]
 }
 
@@ -77,7 +104,7 @@ const app = new Link({
     data() {
         return {
             str: 'Tic-Tac-Toe',
-            history: []
+            score: { X: 0, O: 0 }
         }
     },
     router

@@ -20,17 +20,17 @@
             margin: auto;
             margin-bottom: 20px;
             position: relative;
-            width: 30vw;
+            width: 21vw;
             flex-flow: row wrap;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .grid {
-            flex: 0 0 33%;
+            flex: 0 0 32%;
             box-sizing: border-box;
-            font-size: 5em;
-            height: 10vw;
-            line-height: 10vw;
+            font-size: 4em;
+            height: 7vw;
+            line-height: 7vw;
             margin: 0.5px;
             border: 2px solid black;
         }
@@ -69,7 +69,7 @@
         <div link="str" style="text-align: center;font-size: 2em;font-weight: bold;"></div>
         <nav>
             <router-link to='game'>game</router-link> |
-            <router-link to='history'>history</router-link>
+            <router-link to='score'>score</router-link>
         </nav>
         <router-view></router-view>
     </div>
@@ -82,13 +82,19 @@
                 {{value}}
             </div>
         </div>
-        <a class="reset" @click="reset()">reset</a>
+        <div style="margin-bottom: 25px;">
+            <a class="reset" @click="reset()">reset</a>
+        </div>
+        <div id='history' style="position: relative;text-align: center;margin: auto;font-size: 3vh;">
+            <div @for="(value,index) in history" @click="jump(index)">{{value}}</div>
+        </div>
     </div>
 </template>
 
-<template name='history'>
-    <div id='history' style="position: relative;text-align: center;margin: auto;font-size: 5vh;">
-        <div @for="number in text" @click="push()">{{number}}</div>
+<template name='score'>
+    <div id='score' style="position: relative;text-align: center;margin: auto;font-size: 5vh;">
+        <div>X win:{{X}}</div>
+        <div>O win:{{O}}</div>
     </div>
 </template>
 
