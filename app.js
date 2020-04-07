@@ -1,5 +1,20 @@
+const test = {
+    el: 'test',
+    data() {
+        return {
+            history: [1, 2, 3]
+        }
+    },
+    methods: {
+        test() {
+            this.history = [5, 6, 7]
+        }
+    }
+}
+
 const game = {
     el: "game",
+    components: [test],
     data() {
         return {
             arr: ['', '', '', '', '', '', '', '', ''],
@@ -75,6 +90,7 @@ const score = {
 }
 
 const router = {
+    alive: true,
     routes: [{
         path: 'game',
         component: game,

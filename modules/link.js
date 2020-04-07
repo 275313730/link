@@ -11,10 +11,11 @@ class Link {
         this.destroyed = options.destroyed || null
         this.router = options.router || null
         this.components = options.components || null
+        this.$parent = options.parent || null
+        this.$children = []
         this.views = []
-        //link是暴露到this中的data和methods
+        //$data是暴露到this中的data和methods
         this.$data = {}
-        this.$data.parent = options.parent || null
         this.init()
     }
 
@@ -36,6 +37,7 @@ class Link {
             this.router.el = this.el
             new Router(this.router)
         }
+        console.log(this)
     }
 
     //数组方法改写
@@ -75,12 +77,10 @@ class Link {
     }
 
     componentsExpose() {
-        this.children = []
         this.components.forEach(child => {
-            child.parent = this.$data
-            this.children.push(new Link(child))
+            child.parent = this
+            this.$children.push(new Link(child))
         })
-        this.$data.children = this.children
     }
 
     //销毁
@@ -184,7 +184,7 @@ class Link {
         for (let child of childNodes) {
             if (child.nodeType === 1) {
                 if (this.ignoreCpnNode(child)) {
-                    return
+                    continue
                 }
                 this.normalMatch(child)
                 this.eventMatch(child)
@@ -258,7 +258,7 @@ class Link {
         if (index) {
             thisNode.setAttribute('index', 0)
         }
-        this.viewSet({ node: thisNode, template: dataType, props: { subType: subType, index: index, length: 1, nodeTemplate: newNode }, type: "node" })
+        this.viewSet({ node: thisNode, template: dataType, props: { subType: subType, index: index, length: 1, nodeTemplate: newNode }, type: "for" })
     }
 
     //绑定mustache语法
@@ -278,12 +278,12 @@ class Link {
         let mathes = mustache.match(/\{\{(.*)\}\}/),
             dataTypes = mathes[1].split('+')
         dataTypes.forEach(dataType => {
-            //将[]转化为.
+            //先分离再结合
             let typeArr = dataType.split('.')
-            typeArr.forEach((type, index, self) => {
+            typeArr.forEach((type, index) => {
                 if (type.match(/(.*)\[(\d+)\]/)) {
                     let matches = type.match(/(.*)\[(\d+)\]/)
-                    self.splice(index, 1, matches[1], matches[2])
+                    typeArr.splice(index, 1, matches[1], matches[2])
                 }
             })
             typeArr = typeArr.join('.')
@@ -346,14 +346,20 @@ class Link {
 
     //绑定events语法
     eventsBind(node, event) {
+        this.eventListen(node, event)
+        node.removeAttribute(event)
+    }
+
+    //添加监听事件
+    eventListen(node, event) {
         let _this = this.$data,
             matches = node.getAttribute(event).match(/(.+)\((.*)\)/),
             fn = matches[1],
             args = matches[2]
-        event = event.slice(1)
         if (!_this[fn]) {
             throw new Error(`Method ${fn} is not defined`)
         }
+        event = event.slice(1)
         //判断传入参数
         if (args.match(/event/)) {
             node.addEventListener(event, function (args) {
@@ -370,7 +376,6 @@ class Link {
                 _this[fn](args)
             })
         }
-        node.removeAttribute(event)
     }
 
     /*
@@ -385,8 +390,8 @@ class Link {
         })
     }
 
-    //渲染页面节点
-    nodeRender(thisView) {
+    //渲染页面节点(for语法)
+    forRender(thisView) {
         let value = this.dataGet(this.$data, thisView.template.split('.'))
         if (value.length > thisView.props.length) {
             this.nodePlus(thisView, value)
@@ -421,7 +426,7 @@ class Link {
             //更新视图节点
             for (let i = 0; i < views.length; i++) {
                 const view = views[i];
-                if (view.type == "Node" && view.node == thisView.node) {
+                if (view.type == "for" && view.node == thisView.node) {
                     views.splice(i, 1)
                     i--
                 }

@@ -3,9 +3,9 @@ class Router {
     constructor(options) {
         this.root = document.getElementById(options.el)
         this.routes = options.routes
-        this.data = null
         this.link = null
         this.node = null
+        this.alive = options.alive || false
         this.init()
     }
 
@@ -24,7 +24,9 @@ class Router {
     }
 
     bindEvents() {
+        //监听地址栏输入事件
         window.addEventListener('popstate', () => this.pushHistory(window.location.hash.slice(1)));
+        //监听元素点击事件
         const links = this.root.getElementsByTagName('router-link');
         for (const link of links) {
             link.addEventListener('click', () => this.pushHistory(link.getAttribute('to')));
@@ -33,16 +35,27 @@ class Router {
 
     pushHistory(path) {
         this.routes.forEach(route => {
-            if (route.path === path) {
-                this.data = route
-                window.history.replaceState(route.template, route.path, `#${route.path}`);
+            if (this.link && this.alive && route.path === this.link.el) {
+                this.keepAlive(route)
             }
         });
-        this.getLink()
-        this.getNewNode()
+        this.routes.forEach(route => {
+            if (route.path === path) {
+                window.history.replaceState(route.template, route.path, `#${route.path}`);
+                this.getLink(route.component)
+                this.getNewNode(route.path)
+            }
+        });
     }
 
-    getLink() {
+    keepAlive(route) {
+        let data = JSON.parse(JSON.stringify(this.link.$data))
+        route.component.data = function () {
+            return data
+        }
+    }
+
+    getLink(component) {
         if (this.link == null) {
             let view = this.root.getElementsByTagName('router-view')[0];
             view.outerHTML = window.history.state;
@@ -51,12 +64,12 @@ class Router {
             this.node.outerHTML = window.history.state;
         }
         if (this.link != null) { this.link.destroy() }
-        this.link = new Link(this.data.component)
+        this.link = new Link(component)
     }
 
-    getNewNode() {
+    getNewNode(path) {
         this.root.childNodes.forEach(child => {
-            if (child.nodeType === 1 && child.getAttribute('Id') === this.data.path) {
+            if (child.nodeType === 1 && child.getAttribute('Id') === path) {
                 this.node = child
             }
         })
