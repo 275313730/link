@@ -1,20 +1,21 @@
 "use strict";
 class Link {
     constructor(options) {
+        this.checkOptions(options)
         this.el = options.el
         this.node = document.getElementById(options.el)
-        this.data = options.data || null
-        this.methods = options.methods || null
-        this.mounted = options.mounted || null
-        this.updated = options.updated || null
-        this.beforeDestroy = options.beforeDestroy || null
-        this.destroyed = options.destroyed || null
+        this.methods = Object.freeze(options.methods) || null
+        this.mounted = Object.freeze(options.mounted) || null
+        this.updated = Object.freeze(options.updated) || null
+        this.beforeDestroy = Object.freeze(options.beforeDestroy) || null
+        this.destroyed = Object.freeze(options.destroyed) || null
+        this.alive = options.alive || false
         this.router = options.router || null
+        this.data = options.data || null
         this.components = options.components || null
         this.$parent = options.parent || null
         this.$children = []
         this.views = []
-        this.alive = options.alive || false
         //$data是暴露到this中的data和methods
         this.$data = {}
         this.init()
@@ -23,6 +24,16 @@ class Link {
     /*
         Common Module
     */
+
+    //检查传入参数
+    checkOptions(options) {
+        if (options.el == null) {
+            throw new Error(`Property 'el' is not defined`)
+        }
+        if (document.getElementById(options.el) == null) {
+            throw new Error(`Can not find element '${options.el}'`)
+        }
+    }
 
     //初始化
     init() {
