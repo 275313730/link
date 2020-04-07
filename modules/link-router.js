@@ -2,7 +2,7 @@
 class Router {
     constructor(options) {
         this.root = document.getElementById(options.el)
-        this.routes = Object.create(options.routes)
+        this.routes = options.routes
         this.data = null
         this.link = null
         this.node = null
@@ -38,6 +38,11 @@ class Router {
                 window.history.replaceState(route.template, route.path, `#${route.path}`);
             }
         });
+        this.getLink()
+        this.getNewNode()
+    }
+
+    getLink() {
         if (this.link == null) {
             let view = this.root.getElementsByTagName('router-view')[0];
             view.outerHTML = window.history.state;
@@ -47,6 +52,9 @@ class Router {
         }
         if (this.link != null) { this.link.destroy() }
         this.link = new Link(this.data.component)
+    }
+
+    getNewNode() {
         this.root.childNodes.forEach(child => {
             if (child.nodeType === 1 && child.getAttribute('Id') === this.data.path) {
                 this.node = child

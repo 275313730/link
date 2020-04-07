@@ -3,7 +3,7 @@ class Link {
     constructor(options) {
         this.el = options.el
         this.node = document.getElementById(options.el)
-        this.data = (options.data && options.data()) || null
+        this.data = options.data || null
         this.methods = options.methods || null
         this.mounted = options.mounted || null
         this.updated = options.updated || null
@@ -13,8 +13,8 @@ class Link {
         this.components = options.components || null
         this.views = []
         //link是暴露到this中的data和methods
-        this.link = {}
-        this.link.parent = options.parent || null
+        this.$data = {}
+        this.$data.parent = options.parent || null
         this.init()
     }
 
@@ -26,10 +26,10 @@ class Link {
     init() {
         this.arrayReconstruct()
         this.data && this.dataExpose()
-        this.data && this.dataTraversal(this.link)
+        this.data && this.dataTraversal(this.$data)
         this.methods && this.methodsExpose()
         this.components && this.componentsExpose()
-        this.mounted && this.mounted.call(this.link)
+        this.mounted && this.mounted.call(this.$data)
         this.nodeTraversal(this.node)
         this.notify(this)
         if (this.router) {
@@ -59,9 +59,10 @@ class Link {
 
     //将data暴露到this中
     dataExpose() {
-        for (const key in this.data) {
-            const value = this.data[key];
-            this.link[key] = value
+        let data = this.data()
+        for (const key in data) {
+            const value = data[key];
+            this.$data[key] = value
         }
     }
 
@@ -69,31 +70,31 @@ class Link {
     methodsExpose() {
         for (const key in this.methods) {
             const value = this.methods[key];
-            this.link[key] = value
+            this.$data[key] = value
         }
     }
 
     componentsExpose() {
         this.children = []
         this.components.forEach(child => {
-            child.parent = this.link
+            child.parent = this.$data
             this.children.push(new Link(child))
         })
-        this.link.children = this.children
+        this.$data.children = this.children
     }
 
     //销毁
     destroy() {
-        this.beforeDestroy && this.beforeDestroy.call(this.link)
+        this.beforeDestroy && this.beforeDestroy.call(this.$data)
         this.updated = null
         this.node = null
         this.data = null
-        this.link = null
+        this.$data = null
         this.methods = null
         this.mounted = null
         this.views = []
         this.beforeDestroy = null
-        this.destroyed && this.destroyed.call(this.link)
+        this.destroyed && this.destroyed.call(this.$data)
         this.destroyed = null
     }
 
@@ -146,7 +147,7 @@ class Link {
     dataTypesGet(dataTypes) {
         let value = null
         dataTypes.forEach(dataType => {
-            let _value = this.dataGet(this.link, dataType.split('.'))
+            let _value = this.dataGet(this.$data, dataType.split('.'))
             if (_value == undefined) {
                 _value = isNaN(Number(dataType)) ? dataType : Number(dataType)
             }
@@ -277,12 +278,12 @@ class Link {
         let mathes = mustache.match(/\{\{(.*)\}\}/),
             dataTypes = mathes[1].split('+')
         dataTypes.forEach(dataType => {
-            //先分离再结合
+            //将[]转化为.
             let typeArr = dataType.split('.')
-            typeArr.forEach((type, index) => {
+            typeArr.forEach((type, index, self) => {
                 if (type.match(/(.*)\[(\d+)\]/)) {
                     let matches = type.match(/(.*)\[(\d+)\]/)
-                    typeArr.splice(index, 1, matches[1], matches[2])
+                    self.splice(index, 1, matches[1], matches[2])
                 }
             })
             typeArr = typeArr.join('.')
@@ -293,7 +294,7 @@ class Link {
 
     //绑定link语法
     linkBind(node) {
-        let data = this.link,
+        let data = this.$data,
             attr = node.getAttribute("@link"),
             dataTypes = attr.split('+'),
             value = null
@@ -345,17 +346,14 @@ class Link {
 
     //绑定events语法
     eventsBind(node, event) {
-        this.eventListen(node, event)
-        node.removeAttribute(event)
-    }
-
-    //添加监听事件
-    eventListen(node, event) {
-        let _this = this.link,
+        let _this = this.$data,
             matches = node.getAttribute(event).match(/(.+)\((.*)\)/),
             fn = matches[1],
             args = matches[2]
         event = event.slice(1)
+        if (!_this[fn]) {
+            throw new Error(`Method ${fn} is not defined`)
+        }
         //判断传入参数
         if (args.match(/event/)) {
             node.addEventListener(event, function (args) {
@@ -372,6 +370,7 @@ class Link {
                 _this[fn](args)
             })
         }
+        node.removeAttribute(event)
     }
 
     /*
@@ -388,7 +387,7 @@ class Link {
 
     //渲染页面节点
     nodeRender(thisView) {
-        let value = this.dataGet(this.link, thisView.template.split('.'))
+        let value = this.dataGet(this.$data, thisView.template.split('.'))
         if (value.length > thisView.props.length) {
             this.nodePlus(thisView, value)
         } else if (value.length < thisView.props.length) {
@@ -499,7 +498,7 @@ class Link {
                 if (fn != null) {
                     thisClassName = this[fn[1]](fn[2])
                 } else {
-                    thisClassName = this.dataGet(this.link, cs.split('.'))
+                    thisClassName = this.dataGet(this.$data, cs.split('.'))
                 }
                 boolean = thisClassName ? true : false
             } else {
@@ -509,7 +508,7 @@ class Link {
                 if (fn != null) {
                     boolean = this[fn[1]](fn[2])
                 } else {
-                    boolean = this.dataGet(this.link, dataType.split('.'))
+                    boolean = this.dataGet(this.$data, dataType.split('.'))
                 }
             }
             //修改className
@@ -534,7 +533,7 @@ class Link {
             if (method != null) {
                 thisView.node.style[styleName] = this[method[1]](method[2])
             } else {
-                thisView.node.style[styleName] = this.dataGet(this.link, dataType.split('.'))
+                thisView.node.style[styleName] = this.dataGet(this.$data, dataType.split('.'))
             }
         })
     }

@@ -49,11 +49,11 @@
             margin-bottom: 5px;
         }
 
-        .reset-wrapper {
+        .btn-wrapper {
             margin-bottom: 25px;
         }
 
-        .reset {
+        .btn {
             font-size: 1.5em;
             width: 100%;
             height: 100%;
@@ -62,7 +62,7 @@
             border: 3px solid black;
         }
 
-        .reset:hover {
+        .btn:hover {
             background-color: black;
             color: white;
         }
@@ -112,11 +112,9 @@
                 {{value}}
             </div>
         </div>
-        <div class="reset-wrapper">
-            <a class="reset" @click="reset()">reset</a>
-        </div>
-        <div id='history'>
-            <div @for="(value,index) in history" @click="jump(index)">{{value}}</div>
+        <div class="btn-wrapper">
+            <a class="btn" @click="reset()">Reset</a>
+            <a class="btn" @click="undo()">Undo</a>
         </div>
     </div>
 </template>

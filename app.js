@@ -1,34 +1,5 @@
-const history = {
-    el: "history",
-    data() {
-        return {
-            history: []
-        }
-    },
-    mounted() {
-        this.history = this.parent.history
-    },
-    methods: {
-        jump(index) {
-            if (Number(index) === this.history.length - 1) {
-                return
-            }
-            this.parent.arr = Object.assign([], this.history[index])
-            index = Number(index) + 1
-            this.parent.history.splice(index, this.history.length - index)
-            if (index % 2 === 1) {
-                this.parent.isX = false
-            } else {
-                this.parent.isX = true
-            }
-            this.parent.winner = null
-        }
-    }
-}
-
 const game = {
     el: "game",
-    components: [history],
     data() {
         return {
             arr: ['', '', '', '', '', '', '', '', ''],
@@ -58,7 +29,7 @@ const game = {
                     val3 = this.arr[indexArr[2] - 1]
                 if (val1 !== '' && val1 === val2 && val2 === val3) {
                     this.winner = val1
-                    app.data.score[this.winner]++
+                    app.$data.score[this.winner]++
                     alert(`${this.winner} is win!`)
                     return
                 }
@@ -71,6 +42,20 @@ const game = {
                 this.arr[key] = ''
             }
             this.history.splice(0, this.history.length)
+        },
+        undo() {
+            if (this.history.length === 0) {
+                return
+            }
+            this.history.pop()
+            if (this.history.length > 0) {
+                this.arr = Object.assign([], this.history[this.history.length - 1])
+                this.isX = !this.isX
+            } else {
+                this.arr = ['', '', '', '', '', '', '', '', '']
+                this.isX = true
+            }
+            this.winner = null
         }
     }
 }
@@ -84,8 +69,8 @@ const score = {
         }
     },
     mounted() {
-        this.X = app.data.score.X
-        this.O = app.data.score.O
+        this.X = app.$data.score.X
+        this.O = app.$data.score.O
     }
 }
 
