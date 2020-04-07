@@ -91,6 +91,10 @@
             margin: auto;
             font-size: 5vh;
         }
+
+        .test{
+            font-size: 2em;
+        }
     </style>
 </head>
 
@@ -117,7 +121,7 @@
             <a class="btn" @click="undo()">Undo</a>
         </div>
         <div id="test">
-            <div @click="test()">{{history}}</div>
+            <div @click="test()" class="test">{{history}}</div>
         </div>
     </div>
 </template>

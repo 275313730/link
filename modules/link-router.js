@@ -35,8 +35,15 @@ class Router {
 
     pushHistory(path) {
         this.routes.forEach(route => {
-            if (this.link && this.alive && route.path === this.link.el) {
-                this.keepAlive(route)
+            if (this.link != null && this.alive === true && route.path === this.link.el) {
+                let data = JSON.parse(JSON.stringify(this.link.$data))
+                route.component.data = function () {
+                    return data
+                }
+                route.component.alive = true
+                if (this.link.$children) {
+                    this.componentsAlive(this.link.$children, route.component.components)
+                }
             }
         });
         this.routes.forEach(route => {
@@ -48,11 +55,17 @@ class Router {
         });
     }
 
-    keepAlive(route) {
-        let data = JSON.parse(JSON.stringify(this.link.$data))
-        route.component.data = function () {
-            return data
-        }
+    componentsAlive(children, components) {
+        children.forEach((child, index) => {
+            let data = JSON.parse(JSON.stringify(child.$data))
+            components[index].data = function () {
+                return data
+            }
+            components[index].alive = true
+            if (child.$children) {
+                this.componentsAlive(child.$children, components[index].components)
+            }
+        })
     }
 
     getLink(component) {
@@ -63,7 +76,7 @@ class Router {
         else {
             this.node.outerHTML = window.history.state;
         }
-        if (this.link != null) { this.link.destroy() }
+        if (this.link != null && this.alive === false) { this.link.destroy() }
         this.link = new Link(component)
     }
 

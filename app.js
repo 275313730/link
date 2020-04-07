@@ -2,12 +2,12 @@ const test = {
     el: 'test',
     data() {
         return {
-            history: [1, 2, 3]
+            history: 'test'
         }
     },
     methods: {
         test() {
-            this.history = [5, 6, 7]
+            this.history = 'keep-Alive'
         }
     }
 }
@@ -17,11 +17,16 @@ const game = {
     components: [test],
     data() {
         return {
-            arr: ['', '', '', '', '', '', '', '', ''],
+            arr: [],
             isX: true,
             winner: null,
             jugdeArr: [[1, 4, 7], [2, 5, 8], [3, 6, 9], [1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 5, 9], [3, 5, 7]],
             history: []
+        }
+    },
+    mounted() {
+        for (let i = 0; i < 9; i++) {
+            this.arr.push('')
         }
     },
     methods: {
@@ -83,7 +88,7 @@ const score = {
             O: 0
         }
     },
-    mounted() {
+    updated() {
         this.X = app.$data.score.X
         this.O = app.$data.score.O
     }
