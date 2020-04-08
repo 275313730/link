@@ -1,24 +1,32 @@
 "use strict";
 class Link {
     constructor(options) {
+        //检查传参
         this.checkOptions(options)
-        this.el = options.el
-        this.node = options.parent ? document.getElementsByTagName(options.el)[0] : document.getElementById(options.el)
-        this.template = options.parent ? options.template : null
+        //基础参数
+        this.el = options.el || null
+        this.node = options.node || document.getElementById(options.el)
+        this.template = options.template || null
+        //数据
+        this.data = options.data || null
         this.methods = Object.freeze(options.methods) || null
+        //生命钩子函数
         this.mounted = Object.freeze(options.mounted) || null
         this.updated = Object.freeze(options.updated) || null
         this.beforeDestroy = Object.freeze(options.beforeDestroy) || null
         this.destroyed = Object.freeze(options.destroyed) || null
-        this.alive = options.alive || false
-        this.router = options.router || null
-        this.data = options.data || null
+        //组件
         this.components = options.components || null
         this.$parent = options.parent || null
         this.$children = []
+        //视图
         this.views = []
         //$data是暴露到this中的data和methods
         this.$data = {}
+        //路由
+        this.router = options.router || null
+        this.alive = options.alive || false
+        //初始化
         this.init()
     }
 
@@ -29,9 +37,10 @@ class Link {
     //检查传入参数
     checkOptions(options) {
         if (options.el == null) {
-            throw new Error(`Property 'el' is not defined`)
-        }
-        if (document.getElementsByTagName(options.el) == null && document.getElementById(options.el) == null) {
+            if (options.template == null) {
+                throw new Error(`Property 'el' or 'template' is not defined`)
+            }
+        } else if (document.getElementById(options.el) == null) {
             throw new Error(`Can not find element '${options.el}'`)
         }
     }
@@ -39,12 +48,15 @@ class Link {
     //初始化
     init() {
         this.arrayReconstruct()
+        this.$parent == null && this.setCpnTemplate(this.components)
         this.template && this.replaceCpnHTML()
         this.data && this.dataExpose()
         this.data && this.dataTraversal(this.$data)
         this.methods && this.methodsExpose()
-        !this.alive && this.mounted && this.mounted.call(this.$data)
+        this.mounted && this.mounted.call(this.$data)
         this.nodeTraversal(this.node)
+        this.$data.$parent = this.$parent
+        this.$data.$children = this.$children
         this.notify(this)
         if (this.router) {
             this.router.el = this.el
@@ -72,7 +84,24 @@ class Link {
         })
     }
 
-    //将data暴露到this中
+    //设置子组件模板内容
+    setCpnTemplate(components) {
+        for (const key in components) {
+            let cpn = components[key],
+                node = document.getElementById(cpn.template)
+            if (node == null) {
+                throw new Error(`Can't find template '${cpn.template}'`)
+            }
+            let template = document.getElementById(cpn.template).innerHTML
+            cpn.template = template
+            node.parentNode.removeChild(node)
+            if (cpn.components) {
+                this.setCpnTemplate(cpn.components)
+            }
+        }
+    }
+
+    //将data暴露到$data中
     dataExpose() {
         let data = this.data()
         for (const key in data) {
@@ -81,7 +110,7 @@ class Link {
         }
     }
 
-    //将methods暴露到this中
+    //将methods暴露到$data中
     methodsExpose() {
         for (const key in this.methods) {
             const value = this.methods[key];
@@ -102,13 +131,6 @@ class Link {
         this.views = []
         this.destroyed && this.destroyed.call(this.$data)
         this.destroyed = null
-    }
-
-    replaceCpnHTML() {
-        console.log(this.node)
-        let prev = this.node.previousSibling
-        this.node.outerHTML = this.template
-        this.node = prev.nextElementSibling
     }
 
     /*
@@ -179,6 +201,13 @@ class Link {
     //声明语法属性
     attributes = ['@for', '@link', '@class', '@style']
 
+    //替换组件标签内容
+    replaceCpnHTML() {
+        let prev = this.node.previousSibling
+        this.node.outerHTML = this.template
+        this.node = prev.nextElementSibling
+    }
+
     //在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     viewSet(options) {
         //判断节点是否存在
@@ -214,17 +243,23 @@ class Link {
     isCpnNode(child) {
         if (this.components) {
             const tagName = child.tagName.toLowerCase()
-            for (const component of this.components) {
-                const el = component.el.toLowerCase()
-                //内容已被替换则直接返回,否则用template替换组件内容
-                if (el === tagName) {
-                    component.parent = this
-                    this.$children.push(new Link(component))
+            for (const key in this.components) {
+                let cpn = this.components[key]
+                if (cpn.name === tagName) {
+                    this.newCpn(cpn, child)
                     return true
                 }
             }
             return false
         }
+    }
+
+    //创建子组件实例
+    newCpn(component, child) {
+        let newCpn = Object.assign({}, component)
+        newCpn.parent = this
+        newCpn.node = child
+        this.$children.push(new Link(newCpn))
     }
 
     //匹配基本语法

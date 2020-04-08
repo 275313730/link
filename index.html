@@ -34,8 +34,59 @@
             color: red;
         }
 
+        .game {
+            margin: auto;
+            position: relative;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            margin: auto;
+            margin-bottom: 20px;
+            position: relative;
+            width: 21vw;
+            flex-flow: row wrap;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .grid {
+            flex: 0 0 32%;
+            box-sizing: border-box;
+            font-size: 4em;
+            height: 7vw;
+            line-height: 7vw;
+            margin: 0.5px;
+            border: 2px solid black;
+        }
+
+        .btn-wrapper {
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            font-size: 1.5em;
+            width: 100%;
+            height: 100%;
+            padding: 5px;
+            cursor: pointer;
+            border: 3px solid black;
+        }
+
+        .btn:hover {
+            background-color: black;
+            color: white;
+        }
+
+        .score {
+            position: relative;
+            text-align: center;
+            margin: auto;
+            font-size: 2em;
+        }
+
         .test {
-        font-size: 2em;
+            font-size: 2em;
         }
     </style>
 </head>
@@ -47,12 +98,12 @@
             <router-link to='game'>game</router-link> |
             <router-link to='score'>score</router-link>
         </nav>
-        <router-view></router-view>
+        <game></game>
     </div>
 </body>
 
 <template id='game'>
-    <div>
+    <div class="game">
         <div class="container">
             <div class="grid" @for="(value,index) in arr" @click='print(index)'>
                 {{value}}
@@ -62,75 +113,22 @@
             <a class="btn" @click="reset()">Reset</a>
             <a class="btn" @click="undo()">Undo</a>
         </div>
-        <test></test>
-        <test></test>
+        <score></score>
     </div>
 </template>
 
-<style>
-    #game {
-        margin: auto;
-        position: relative;
-        text-align: center;
-    }
-
-    .container {
-        display: flex;
-        margin: auto;
-        margin-bottom: 20px;
-        position: relative;
-        width: 21vw;
-        flex-flow: row wrap;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .grid {
-        flex: 0 0 32%;
-        box-sizing: border-box;
-        font-size: 4em;
-        height: 7vw;
-        line-height: 7vw;
-        margin: 0.5px;
-        border: 2px solid black;
-    }
-
-    .btn-wrapper {
-        margin-bottom: 25px;
-    }
-
-    .btn {
-        font-size: 1.5em;
-        width: 100%;
-        height: 100%;
-        padding: 5px;
-        cursor: pointer;
-        border: 3px solid black;
-    }
-
-    .btn:hover {
-        background-color: black;
-        color: white;
-    }
-</style>
-
 <template id='score'>
-    <div>
+    <div class="score">
         <div>X win:{{X}}</div>
         <div>O win:{{O}}</div>
     </div>
 </template>
 
-<style>
-    #score {
-        position: relative;
-        text-align: center;
-        margin: auto;
-        font-size: 5vh;
-    }
-</style>
 
 <script src="/modules/Link.js"></script>
 <script src="/modules/link-router.js"></script>
+<script src="/components/score.js"></script>
+<script src="/components/game.js"></script>
 <script src="app.js"></script>
 
 </html>
