@@ -15,6 +15,7 @@ class Router {
         this.pushHistory(this.routes[0].path)
     }
 
+    //获取template并移除节点
     getTemplate() {
         this.routes.forEach(route => {
             const template = document.getElementById(route.component.el)
@@ -23,6 +24,7 @@ class Router {
         })
     }
 
+    //监听路由事件
     bindEvents() {
         //监听地址栏输入事件
         window.addEventListener('popstate', () => this.pushHistory(window.location.hash.slice(1)));
@@ -33,28 +35,34 @@ class Router {
         }
     }
 
+    //地址跳转
     pushHistory(path) {
         this.routes.forEach(route => {
-            if (this.link != null && this.alive === true && route.path === this.link.el) {
-                let data = JSON.parse(JSON.stringify(this.link.$data))
-                route.component.data = function () {
-                    return data
-                }
-                route.component.alive = true
-                if (this.link.$children) {
-                    this.componentsAlive(this.link.$children, route.component.components)
-                }
-            }
+            this.keepAlive(route)
         });
         this.routes.forEach(route => {
             if (route.path === path) {
                 window.history.replaceState(route.template, route.path, `#${route.path}`);
-                this.getLink(route.component)
-                this.getNewNode(route.path)
+                this.linkChange(route.component)
             }
         });
     }
 
+    //保持组件数据
+    keepAlive(route) {
+        if (this.link != null && this.alive === true && route.path === this.link.el) {
+            let data = JSON.parse(JSON.stringify(this.link.$data))
+            route.component.data = function () {
+                return data
+            }
+            route.component.alive = true
+            if (this.link.$children) {
+                this.componentsAlive(this.link.$children, route.component.components)
+            }
+        }
+    }
+
+    //保持子组件数据
     componentsAlive(children, components) {
         children.forEach((child, index) => {
             let data = JSON.parse(JSON.stringify(child.$data))
@@ -68,23 +76,18 @@ class Router {
         })
     }
 
-    getLink(component) {
+    //跳转时改变link实例和页面内容
+    linkChange(component) {
         if (this.link == null) {
-            let view = this.root.getElementsByTagName('router-view')[0];
-            view.outerHTML = window.history.state;
+            this.node = this.root.getElementsByTagName('router-view')[0]
         }
-        else {
-            this.node.outerHTML = window.history.state;
+        let prev = this.node.previousSibling
+        this.node.outerHTML = window.history.state;
+        this.node = prev.nextElementSibling
+        if (this.node.getAttribute('Id') === null) {
+            this.node.setAttribute('Id', component.el)
         }
         if (this.link != null && this.alive === false) { this.link.destroy() }
         this.link = new Link(component)
-    }
-
-    getNewNode(path) {
-        this.root.childNodes.forEach(child => {
-            if (child.nodeType === 1 && child.getAttribute('Id') === path) {
-                this.node = child
-            }
-        })
     }
 }

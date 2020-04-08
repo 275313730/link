@@ -1,5 +1,9 @@
 const test = {
     el: 'test',
+    template: `
+    <div id='test'>
+        <div @click="test()" class="test">{{history}}</div>
+    </div >`,
     data() {
         return {
             history: 'test'
@@ -95,7 +99,6 @@ const score = {
 }
 
 const router = {
-    alive: true,
     routes: [{
         path: 'game',
         component: game,

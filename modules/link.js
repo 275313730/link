@@ -3,7 +3,8 @@ class Link {
     constructor(options) {
         this.checkOptions(options)
         this.el = options.el
-        this.node = document.getElementById(options.el)
+        this.node = options.parent ? document.getElementsByTagName(options.el)[0] : document.getElementById(options.el)
+        this.template = options.parent ? options.template : null
         this.methods = Object.freeze(options.methods) || null
         this.mounted = Object.freeze(options.mounted) || null
         this.updated = Object.freeze(options.updated) || null
@@ -30,7 +31,7 @@ class Link {
         if (options.el == null) {
             throw new Error(`Property 'el' is not defined`)
         }
-        if (document.getElementById(options.el) == null) {
+        if (document.getElementsByTagName(options.el) == null && document.getElementById(options.el) == null) {
             throw new Error(`Can not find element '${options.el}'`)
         }
     }
@@ -38,10 +39,10 @@ class Link {
     //初始化
     init() {
         this.arrayReconstruct()
+        this.template && this.replaceCpnHTML()
         this.data && this.dataExpose()
         this.data && this.dataTraversal(this.$data)
         this.methods && this.methodsExpose()
-        this.components && this.componentsExpose()
         !this.alive && this.mounted && this.mounted.call(this.$data)
         this.nodeTraversal(this.node)
         this.notify(this)
@@ -88,13 +89,6 @@ class Link {
         }
     }
 
-    componentsExpose() {
-        this.components.forEach(child => {
-            child.parent = this
-            this.$children.push(new Link(child))
-        })
-    }
-
     //销毁
     destroy() {
         this.beforeDestroy && this.beforeDestroy.call(this.$data)
@@ -108,6 +102,13 @@ class Link {
         this.views = []
         this.destroyed && this.destroyed.call(this.$data)
         this.destroyed = null
+    }
+
+    replaceCpnHTML() {
+        console.log(this.node)
+        let prev = this.node.previousSibling
+        this.node.outerHTML = this.template
+        this.node = prev.nextElementSibling
     }
 
     /*
@@ -195,7 +196,7 @@ class Link {
         //匹配语法
         for (let child of childNodes) {
             if (child.nodeType === 1) {
-                if (this.ignoreCpnNode(child)) {
+                if (this.components && this.isCpnNode(child)) {
                     continue
                 }
                 this.normalMatch(child)
@@ -209,15 +210,20 @@ class Link {
         }
     }
 
-    //跳过子组件节点
-    ignoreCpnNode(child) {
+    //检查是否为子组件
+    isCpnNode(child) {
         if (this.components) {
-            let id = child.getAttribute('Id')
-            for (const child of this.components) {
-                if (child.el === id) {
+            const tagName = child.tagName.toLowerCase()
+            for (const component of this.components) {
+                const el = component.el.toLowerCase()
+                //内容已被替换则直接返回,否则用template替换组件内容
+                if (el === tagName) {
+                    component.parent = this
+                    this.$children.push(new Link(component))
                     return true
                 }
             }
+            return false
         }
     }
 
@@ -262,11 +268,11 @@ class Link {
             matches = attr.match(/(.+)in(.+)/),
             subType = matches[1].match(/\((.+)\)/),
             dataType = matches[2].trim(),
-            index = false
+            hasIndex = false
         //判断左侧内容是否包含多个参数
         if (subType) {
             subType = subType[1].split(',')[0].trim()
-            index = true
+            hasIndex = true
         } else {
             subType = matches[1].trim()
         }
@@ -280,10 +286,10 @@ class Link {
             innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
         }
         thisNode.innerHTML = innerHTML
-        if (index) {
+        if (hasIndex) {
             thisNode.setAttribute('index', 0)
         }
-        this.viewSet({ node: thisNode, template: dataType, props: { subType: subType, index: index, length: 1, nodeTemplate: newNode }, type: "for" })
+        this.viewSet({ node: thisNode, template: dataType, props: { subType: subType, hasIndex: hasIndex, length: 1, nodeTemplate: newNode }, type: "for" })
     }
 
     //绑定mustache语法
@@ -461,7 +467,7 @@ class Link {
             thisView.node = newNode
             this.replaceHTML(thisView)
             //设置index
-            if (thisView.props.index) {
+            if (thisView.props.hasIndex) {
                 thisView.node.setAttribute('index', thisView.props.length)
             }
             thisView.props.length++
