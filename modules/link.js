@@ -26,7 +26,7 @@ class Link {
 
         //$data是暴露到methods中的属性，包含data和methods
         this.$data = {}
-        
+
         //视图
         this.views = []
 
@@ -58,27 +58,38 @@ class Link {
     init() {
         //重写数组方法
         this.arrayReconstruct()
+
         //替换组件标签为模板内容
         this.template && this.replaceCpnHTML()
+
         //将数据替换成aliveData(如果存在aliveData)
         this.aliveData && this.dataReplace()
+
         //执行data函数，将数据加入$data
         if (this.data) { this.$data = this.data() }
+
         //遍历$data并defineProperty
         this.$data && this.dataTraversal(this.$data)
+
         //将methods中的函数加入$data
         this.methods && this.methodsExpose()
+
         //判断组件是否alive来决定是否执行mounted函数
         this.alive === false && this.mounted && this.mounted.call(this.$data)
+
         //遍历组件节点并进行view绑定
         this.nodeTraversal(this.node)
+
         //将$parent和$children传入$data
         this.$data.$parent = this.$parent
         this.$data.$children = this.$children
+
         //刷新页面
         this.notify(this)
+
         //刷新页面后调用一次updated
         this.updated && this.updated.call(this.$data)
+
         //传入router
         this.router && new Router(Object.assign(this.router, { el: this.el }))
     }
@@ -89,14 +100,20 @@ class Link {
             arrayProto = Array.prototype,
             arrayMethods = Object.create(arrayProto),
             methodsList = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse']
+
         methodsList.forEach(method => {
             const original = arrayMethods[method]
             Array.prototype[method] = function (...args) {
+                //用数组原方法处理
                 const result = original.apply(this, args)
+
+                //自定义事件
                 if (this.__ob__) {
                     _this.dataTraversal(this)
                 }
                 _this.notify()
+
+                //返回值
                 return result
             }
         })
@@ -104,15 +121,13 @@ class Link {
 
     //销毁
     destroy() {
+        //销毁前
         this.beforeDestroy && this.beforeDestroy.call(this.$data)
+        this.$data = null
         this.mounted = null
         this.updated = null
         this.beforeDestroy = null
-        this.node = null
-        this.data = null
-        this.$data = null
-        this.methods = null
-        this.views = []
+        //销毁$data和其他生命钩子函数
         this.destroyed && this.destroyed.call(this.$data)
         this.destroyed = null
     }
@@ -162,7 +177,6 @@ class Link {
                 if (value === newValue) { return }
                 value = newValue
                 _this.notify(key)
-                _this.updated && _this.updated()
             },
             enumerable: typeof (data) === 'object' ? true : false,
             configurable: true,
@@ -177,7 +191,7 @@ class Link {
         return data
     }
 
-    //通过dataTypes数组来获取表达式的值
+    //获取表达式的值
     dataTypesGet(dataTypes) {
         let value = null
         dataTypes.forEach(dataType => {
@@ -280,7 +294,7 @@ class Link {
             subType = matches[1].match(/\((.+)\)/),
             dataType = matches[2].trim(),
             hasIndex = false
-        //判断左侧内容是否包含多个参数
+        //判断subType是否包含index
         if (subType) {
             subType = subType[1].split(',')[0].trim()
             hasIndex = true
@@ -289,17 +303,18 @@ class Link {
         }
         node.removeAttribute('@for')
         //复制一个新的节点
-        let thisNode = node,
-            newNode = node.cloneNode(),
-            innerHTML = thisNode.innerHTML
+        let newNode = node.cloneNode()
         newNode.innerHTML = node.innerHTML
+        //替换HTML的mustache
+        let thisNode = node,
+            innerHTML = thisNode.innerHTML
         while (innerHTML != innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)) {
             innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
         }
         thisNode.innerHTML = innerHTML
-        if (hasIndex) {
-            thisNode.setAttribute('index', 0)
-        }
+        //设置index
+        hasIndex && thisNode.setAttribute('index', 0)
+        //添加到view
         this.viewSet({ node: thisNode, template: dataType, props: { subType: subType, hasIndex: hasIndex, length: 1, nodeTemplate: newNode }, type: "for" })
     }
 
@@ -436,20 +451,21 @@ class Link {
             switch (view.type) {
                 case 'for':
                     this.forRender(view)
-                    return
+                    break
                 case 'class':
                     this.classRender(view)
-                    return
+                    break
                 case 'style':
                     this.styleRender(view)
-                    return
+                    break
                 case 'link':
                     this.linkRender(view)
-                    return
+                    break
                 case 'mustache':
                     this.mustacheRender(view)
-                    return
+                    break
             }
+            this.updated && this.updated.call(this.$data)
         })
     }
 
@@ -462,7 +478,7 @@ class Link {
             this.delNode(thisView, value)
         }
         this.viewSet(thisView)
-        this.updated && this.updated()
+        this.updated && this.updated.call(this.$data)
     }
 
     //节点添加
@@ -476,19 +492,19 @@ class Link {
             thisView.node.parentNode.insertBefore(newNode, thisView.node.nextSibling)
             //更新当前节点
             thisView.node = newNode
-            this.replaceHTML(thisView)
+            this.replaceNodeHTML(thisView)
             //设置index
             if (thisView.props.hasIndex) {
                 thisView.node.setAttribute('index', thisView.props.length)
             }
             thisView.props.length++
-            this.refreshNode(thisView)
+            this.refreshView(thisView)
             this.nodeTraversal(thisView.node.parentNode)
         }
     }
 
-    //替换页面内容
-    replaceHTML(thisView) {
+    //替换节点内容
+    replaceNodeHTML(thisView) {
         let innerHTML = thisView.node.innerHTML,
             subType = thisView.props.subType,
             length = thisView.props.length
@@ -502,7 +518,7 @@ class Link {
     //节点减少
     delNode(thisView, value) {
         while (value.length < thisView.props.length) {
-            this.refreshNode(thisView)
+            this.refreshView(thisView)
             let prevNode = thisView.node.previousSibling
             thisView.node.parentNode.removeChild(thisView.node)
             thisView.node = prevNode
@@ -510,8 +526,8 @@ class Link {
         }
     }
 
-    //更新视图节点
-    refreshNode(thisView) {
+    //更新视图
+    refreshView(thisView) {
         this.views = this.views.filter(view => {
             return view.type === 'for' && view.node === thisView.node ? true : false
         })
