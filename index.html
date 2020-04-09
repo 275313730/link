@@ -98,7 +98,7 @@
             <router-link to='game'>game</router-link> |
             <router-link to='score'>score</router-link>
         </nav>
-        <game></game>
+        <router-view></router-view>
     </div>
 </body>
 
@@ -113,7 +113,7 @@
             <a class="btn" @click="reset()">Reset</a>
             <a class="btn" @click="undo()">Undo</a>
         </div>
-        <score></score>
+        <test></test>
     </div>
 </template>
 
@@ -124,11 +124,18 @@
     </div>
 </template>
 
+<template id="test">
+    <div>
+        <div @click='click()'>{{test}}</div>
+    </div>
+</template>
+
 
 <script src="/modules/Link.js"></script>
 <script src="/modules/link-router.js"></script>
-<script src="/components/score.js"></script>
-<script src="/components/game.js"></script>
+<script src="/components/test.js"></script>
+<script src="/views/score.js"></script>
+<script src="/views/game.js"></script>
 <script src="app.js"></script>
 
 </html>

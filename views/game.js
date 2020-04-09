@@ -1,7 +1,5 @@
 const game = {
-    name: 'game',
-    template: "game",
-    components: { score },
+    el: 'game',
     data() {
         return {
             arr: [],
@@ -13,6 +11,8 @@ const game = {
     },
     mounted() {
         this.init()
+        Link.$store.X = 0
+        Link.$store.O = 0
     },
     methods: {
         init() {
@@ -39,7 +39,7 @@ const game = {
                     val3 = this.arr[indexArr[2] - 1]
                 if (val1 !== '' && val1 === val2 && val2 === val3) {
                     this.winner = val1
-                    this.$children[0].$data[this.winner]++
+                    Link.$store[this.winner]++
                     alert(`${this.winner} is win!`)
                     return
                 }

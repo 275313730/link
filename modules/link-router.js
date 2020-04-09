@@ -2,26 +2,19 @@
 class Router {
     constructor(options) {
         this.root = document.getElementById(options.el)
+        this.node = this.root.getElementsByTagName('router-view')[0]
         this.routes = options.routes
         this.link = null
-        this.node = null
         this.alive = options.alive || false
+        this.aliveData = []
         this.init()
     }
 
     init() {
-        this.getTemplate()
         this.bindEvents()
+        this.getTemplate()
+        this.alive && this.setAliveData()
         this.pushHistory(this.routes[0].path)
-    }
-
-    //获取template并移除节点
-    getTemplate() {
-        this.routes.forEach(route => {
-            const template = document.getElementById(route.component.el)
-            route.template = template.innerHTML
-            template.parentNode.removeChild(template)
-        })
     }
 
     //监听路由事件
@@ -35,59 +28,91 @@ class Router {
         }
     }
 
-    //地址跳转
-    pushHistory(path) {
+    //载入模板
+    getTemplate() {
         this.routes.forEach(route => {
-            this.keepAlive(route)
-        });
-        this.routes.forEach(route => {
-            if (route.path === path) {
-                window.history.replaceState(route.template, route.path, `#${route.path}`);
-                this.linkChange(route.component)
-            }
-        });
-    }
-
-    //保持组件数据
-    keepAlive(route) {
-        if (this.link != null && this.alive === true && route.path === this.link.el) {
-            let data = JSON.parse(JSON.stringify(this.link.$data))
-            route.component.data = function () {
-                return data
-            }
-            route.component.alive = true
-            if (this.link.$children) {
-                this.componentsAlive(this.link.$children, route.component.components)
-            }
-        }
-    }
-
-    //保持子组件数据
-    componentsAlive(children, components) {
-        children.forEach((child, index) => {
-            let data = JSON.parse(JSON.stringify(child.$data))
-            components[index].data = function () {
-                return data
-            }
-            components[index].alive = true
-            if (child.$children) {
-                this.componentsAlive(child.$children, components[index].components)
-            }
+            route.template = document.getElementById(route.component.el).innerHTML
         })
     }
 
-    //跳转时改变link实例和页面内容
-    linkChange(component) {
-        if (this.link == null) {
-            this.node = this.root.getElementsByTagName('router-view')[0]
+    //设置aliveData初始数据
+    setAliveData() {
+        this.routes.forEach(route => {
+            this.aliveData.push({ name: route.component.el, $data: {} })
+        })
+    }
+
+    //地址跳转
+    pushHistory(path) {
+        if (this.link && path == this.link.el) {
+            return
         }
+        if (this.link != null && this.alive === true) {
+            this.aliveData.forEach(data => {
+                if (data.name === this.link.el) {
+                    this.keepAlive(data, this.link)
+                }
+            })
+        }
+        for (const route of this.routes) {
+            if (route.path === path) {
+                window.history.replaceState(route.template, route.path, `#${route.path}`);
+                this.replaceHTML(route.template)
+                this.setLink(route.component, path)
+                return
+            }
+        }
+    }
+
+    //替换页面内容
+    replaceHTML(template) {
         let prev = this.node.previousSibling
-        this.node.outerHTML = window.history.state;
+        this.node.outerHTML = template
         this.node = prev.nextElementSibling
-        if (this.node.getAttribute('Id') === null) {
-            this.node.setAttribute('Id', component.el)
-        }
+    }
+
+    //设置Link
+    setLink(component, path) {
         if (this.link != null && this.alive === false) { this.link.destroy() }
-        this.link = new Link(component)
+        if (component.alive === true) {
+            for (const data of this.aliveData) {
+                let newCpn = Object.assign({}, component)
+                newCpn.node = this.node
+                //用JSON.parse和JSON.stringify来进行深度遍历，防止router里的数据被污染
+                newCpn.aliveData = JSON.parse(JSON.stringify(data))
+                if (data.name === path) {
+                    this.link = new Link(newCpn)
+                    return
+                }
+            }
+        }
+        this.link = new Link(Object.assign(component, { node: this.node }))
+        if (this.alive) {
+            component.alive = true
+        }
+    }
+
+    //保持组件数据
+    keepAlive(data, link) {
+        this.dataCopy(data.$data, link.$data)
+        if (link.$data.$children) {
+            data.$children = []
+            link.$data.$children.forEach((child, index) => {
+                data.$children.push({ name: link.name, $data: {} })
+                this.keepAlive(data.$children[index], child)
+            });
+        }
+    }
+
+    dataCopy(data, $data) {
+        for (const key in $data) {
+            if (key === '$parent' || key === '$children' || $data[key] instanceof Function) {
+                continue
+            }
+            data[key] = $data[key]
+            if (typeof ($data[key]) === 'object') {
+                this.dataCopy(data[key], $data[key])
+            }
+        }
     }
 }

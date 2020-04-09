@@ -3,29 +3,38 @@ class Link {
     constructor(options) {
         //检查传参
         this.checkOptions(options)
+
         //基础参数
         this.el = options.el || null
         this.node = options.node || document.getElementById(options.el)
         this.template = options.template || null
+
         //数据
         this.data = options.data || null
         this.methods = Object.freeze(options.methods) || null
+
         //生命钩子函数
         this.mounted = Object.freeze(options.mounted) || null
         this.updated = Object.freeze(options.updated) || null
         this.beforeDestroy = Object.freeze(options.beforeDestroy) || null
         this.destroyed = Object.freeze(options.destroyed) || null
+
         //组件
         this.components = options.components || null
         this.$parent = options.parent || null
         this.$children = []
+
+        //$data是暴露到methods中的属性，包含data和methods
+        this.$data = {}
+        
         //视图
         this.views = []
-        //$data是暴露到this中的data和methods
-        this.$data = {}
+
         //路由
         this.router = options.router || null
         this.alive = options.alive || false
+        this.aliveData = options.aliveData || null
+
         //初始化
         this.init()
     }
@@ -47,22 +56,31 @@ class Link {
 
     //初始化
     init() {
+        //重写数组方法
         this.arrayReconstruct()
-        this.$parent == null && this.setCpnTemplate(this.components)
+        //替换组件标签为模板内容
         this.template && this.replaceCpnHTML()
-        this.data && this.dataExpose()
-        this.data && this.dataTraversal(this.$data)
+        //将数据替换成aliveData(如果存在aliveData)
+        this.aliveData && this.dataReplace()
+        //执行data函数，将数据加入$data
+        if (this.data) { this.$data = this.data() }
+        //遍历$data并defineProperty
+        this.$data && this.dataTraversal(this.$data)
+        //将methods中的函数加入$data
         this.methods && this.methodsExpose()
-        this.mounted && this.mounted.call(this.$data)
+        //判断组件是否alive来决定是否执行mounted函数
+        this.alive === false && this.mounted && this.mounted.call(this.$data)
+        //遍历组件节点并进行view绑定
         this.nodeTraversal(this.node)
+        //将$parent和$children传入$data
         this.$data.$parent = this.$parent
         this.$data.$children = this.$children
+        //刷新页面
         this.notify(this)
-        if (this.router) {
-            this.router.el = this.el
-            new Router(this.router)
-        }
+        //刷新页面后调用一次updated
         this.updated && this.updated.call(this.$data)
+        //传入router
+        this.router && new Router(Object.assign(this.router, { el: this.el }))
     }
 
     //数组方法改写
@@ -84,40 +102,6 @@ class Link {
         })
     }
 
-    //设置子组件模板内容
-    setCpnTemplate(components) {
-        for (const key in components) {
-            let cpn = components[key],
-                node = document.getElementById(cpn.template)
-            if (node == null) {
-                throw new Error(`Can't find template '${cpn.template}'`)
-            }
-            let template = document.getElementById(cpn.template).innerHTML
-            cpn.template = template
-            node.parentNode.removeChild(node)
-            if (cpn.components) {
-                this.setCpnTemplate(cpn.components)
-            }
-        }
-    }
-
-    //将data暴露到$data中
-    dataExpose() {
-        let data = this.data()
-        for (const key in data) {
-            const value = data[key];
-            this.$data[key] = value
-        }
-    }
-
-    //将methods暴露到$data中
-    methodsExpose() {
-        for (const key in this.methods) {
-            const value = this.methods[key];
-            this.$data[key] = value
-        }
-    }
-
     //销毁
     destroy() {
         this.beforeDestroy && this.beforeDestroy.call(this.$data)
@@ -136,6 +120,21 @@ class Link {
     /*
         Data Module
     */
+
+    //将data替换为aliveData
+    dataReplace() {
+        this.data = function () {
+            return this.aliveData.$data
+        }
+    }
+
+    //将methods暴露到$data中
+    methodsExpose() {
+        for (const key in this.methods) {
+            const value = this.methods[key];
+            this.$data[key] = value
+        }
+    }
 
     //遍历data
     dataTraversal(data) {
@@ -225,7 +224,7 @@ class Link {
         //匹配语法
         for (let child of childNodes) {
             if (child.nodeType === 1) {
-                if (this.components && this.isCpnNode(child)) {
+                if (this.isCpnNode(child)) {
                     continue
                 }
                 this.normalMatch(child)
@@ -237,29 +236,6 @@ class Link {
                 this.nodeTraversal(child)
             }
         }
-    }
-
-    //检查是否为子组件
-    isCpnNode(child) {
-        if (this.components) {
-            const tagName = child.tagName.toLowerCase()
-            for (const key in this.components) {
-                let cpn = this.components[key]
-                if (cpn.name === tagName) {
-                    this.newCpn(cpn, child)
-                    return true
-                }
-            }
-            return false
-        }
-    }
-
-    //创建子组件实例
-    newCpn(component, child) {
-        let newCpn = Object.assign({}, component)
-        newCpn.parent = this
-        newCpn.node = child
-        this.$children.push(new Link(newCpn))
     }
 
     //匹配基本语法
@@ -622,4 +598,47 @@ class Link {
             thisView.node.style[styleName] = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType.split('.'))
         })
     }
+
+    /*
+        Component Module
+    */
+
+    //注册组件
+    static component(options) {
+        let node = document.getElementById(options.template)
+        if (node == null) {
+            throw new Error(`Can't find template '${options.template}'`)
+        }
+        options.template = node.innerHTML
+        node.parentNode.removeChild(node)
+        Link.components.push(options)
+    }
+
+    //检查是否为子组件
+    isCpnNode(child) {
+        const tagName = child.tagName.toLowerCase()
+        for (const cpn of Link.components) {
+            if (cpn.name === tagName) {
+                this.newCpn(cpn, child)
+                return true
+            }
+        }
+        return false
+    }
+
+    //创建子组件实例
+    newCpn(component, child) {
+        let newCpn = Object.assign({}, component)
+        newCpn.parent = this
+        newCpn.node = child
+        if (this.aliveData && this.aliveData.$children) {
+            newCpn.aliveData = this.aliveData.$children[0]
+            this.aliveData.$children.splice(0, 1)
+        }
+        this.$children.push(new Link(newCpn))
+    }
+
 }
+
+Link.components = []
+Link.$store = {}
