@@ -15,13 +15,13 @@
             overflow-x: hidden;
         }
 
-        #str {
+        #app .str {
             text-align: center;
             font-size: 2em;
             font-weight: bold;
         }
 
-        nav {
+        #app nav {
             font-size: 1.5em;
             text-align: center;
             margin: auto;
@@ -29,7 +29,7 @@
             margin-bottom: 5px;
         }
 
-        router-link:hover {
+        #app router-link:hover {
             cursor: pointer;
             color: red;
         }
@@ -40,7 +40,7 @@
             text-align: center;
         }
 
-        .container {
+        .game .container {
             display: flex;
             margin: auto;
             margin-bottom: 20px;
@@ -50,7 +50,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .grid {
+        .game .container .grid {
             flex: 0 0 32%;
             box-sizing: border-box;
             font-size: 4em;
@@ -60,11 +60,11 @@
             border: 2px solid black;
         }
 
-        .btn-wrapper {
+        .game .btn-wrapper {
             margin-bottom: 25px;
         }
 
-        .btn {
+        .game .btn-wrapper .btn {
             font-size: 1.5em;
             width: 100%;
             height: 100%;
@@ -73,7 +73,7 @@
             border: 3px solid black;
         }
 
-        .btn:hover {
+        .game .btn-wrapper .btn:hover {
             background-color: black;
             color: white;
         }
@@ -93,7 +93,7 @@
 
 <body>
     <div id="app">
-        <div @link="str" id="str"></div>
+        <div @link="str" class="str"></div>
         <nav>
             <router-link to='game'>game</router-link> |
             <router-link to='score'>score</router-link>

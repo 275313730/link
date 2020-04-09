@@ -3,7 +3,7 @@ Link.component({
     template: 'test',
     data() {
         return {
-            test: 'test'
+            test: 'Component-test'
         }
     },
     methods: {
