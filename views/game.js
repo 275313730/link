@@ -4,6 +4,7 @@ const game = {
         return {
             arr: [],
             isX: true,
+            caling: false,
             winner: null,
             jugdeArr: [[1, 4, 7], [2, 5, 8], [3, 6, 9], [1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 5, 9], [3, 5, 7]],
             history: []
@@ -21,9 +22,9 @@ const game = {
             }
         },
         print(index) {
+            if (this.caling) { return }
             if (this.winner) {
-                alert(`${this.winner} is win!`)
-                return
+                return alert(`${this.winner} is win!`)
             }
             if (this.arr[index] === '') {
                 this.arr[index] = this.isX ? 'X' : 'O'
@@ -33,6 +34,7 @@ const game = {
             }
         },
         cal() {
+            this.caling = true
             for (const indexArr of this.jugdeArr) {
                 let val1 = this.arr[indexArr[0] - 1],
                     val2 = this.arr[indexArr[1] - 1],
@@ -41,9 +43,10 @@ const game = {
                     this.winner = val1
                     Link.$store[this.winner]++
                     alert(`${this.winner} is win!`)
-                    return
+                    break
                 }
             }
+            this.caling = false
         },
         reset() {
             this.winner = null
