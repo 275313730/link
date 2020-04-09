@@ -1,1 +1,1 @@
-link是一个MVVM框架，包含了三个模块：数据(Data),响应(Respond),视图(View)。
+Link是一个MVVM框架
