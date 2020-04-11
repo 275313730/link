@@ -1,5 +1,4 @@
 Link.component({
-    name: 'test',
     template: 'test',
     data() {
         return {

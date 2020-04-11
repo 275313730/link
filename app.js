@@ -9,6 +9,8 @@ const router = {
     }]
 }
 
+Link.$store = { X: 0, O: 0 }
+
 new Link({
     el: 'app',
     data() {

@@ -24,7 +24,7 @@ class Link {
         this.$parent = options.parent || null
         this.$children = []
 
-        //$data是暴露到methods中的属性，包含data和methods
+        //$data包含data和methods
         this.$data = {}
 
         //视图
@@ -127,6 +127,7 @@ class Link {
         this.mounted = null
         this.updated = null
         this.beforeDestroy = null
+
         //销毁$data和其他生命钩子函数
         this.destroyed && this.destroyed.call(this.$data)
         this.destroyed = null
@@ -154,8 +155,7 @@ class Link {
     //遍历data
     dataTraversal(data) {
         for (const key of Object.keys(data)) {
-            let value = data[key]
-            this.defineProperty(this, data, key, value)
+            this.defineProperty(this, data, key, data[key])
             if (data[key] instanceof Object) {
                 if (data[key].length === 0) {
                     data[key].__ob__ = true
@@ -183,8 +183,9 @@ class Link {
         })
     }
 
-    //获取data
-    dataGet(data, keyArr) {
+    //获取data的值
+    dataGet(data, key) {
+        const keyArr = key.split('.')
         keyArr.forEach(key => {
             data = data[key]
         })
@@ -192,12 +193,12 @@ class Link {
     }
 
     //获取表达式的值
-    dataTypesGet(dataTypes) {
+    expressionGet(keys) {
         let value = null
-        dataTypes.forEach(dataType => {
-            let _value = this.dataGet(this.$data, dataType.split('.'))
+        keys.forEach(key => {
+            let _value = this.dataGet(this.$data, key)
             if (_value === undefined) {
-                _value = isNaN(Number(dataType)) ? dataType : Number(dataType)
+                _value = isNaN(Number(key)) ? key : Number(key)
             }
             value = (value == null) ? _value : value + _value
         })
@@ -208,10 +209,10 @@ class Link {
         View Module
     */
 
-    //声明语法事件
+    //声明Dom事件
     events = ["@click", "@dblclick", "@mouseover", "@mouseleave", "@mouseenter", "@mouseup", "@mousedown", "@mousemove", "@mouseout", "@keydown", "@keyup", "@keypress", "@select", "@change", "@focus", "@submit", "@input", "@copy", "@cut", "@paste", "@drag", "@drop", "@dragover", "@dragend", "@dragstart", "@dragleave", "@dragenter"]
 
-    //声明语法属性
+    //声明Dom属性
     attributes = ['@for', '@link', '@class', '@style']
 
     //替换组件标签内容
@@ -356,10 +357,10 @@ class Link {
             dataTypes = attr.split('+'),
             value = null
         if (dataTypes.length === 1) {
-            value = this.dataGet(data, dataTypes[0].split('.'))
+            value = this.dataGet(data, dataTypes[0])
         } else {
             dataTypes.forEach(dataType => {
-                let _value = this.dataGet(data, dataType.split('.')) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
+                let _value = this.dataGet(data, dataType) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
                 value = value == null ? _value : value + _value
             })
         }
@@ -471,7 +472,7 @@ class Link {
 
     //渲染页面节点(for语法)
     forRender(thisView) {
-        let value = this.dataGet(this.$data, thisView.template.split('.'))
+        let value = this.dataGet(this.$data, thisView.template)
         if (value.length > thisView.props.length) {
             this.addNode(thisView, value)
         } else if (value.length < thisView.props.length) {
@@ -553,7 +554,7 @@ class Link {
             mustaches = text.match(/\{\{(.+?)\}\}/g)
         mustaches.forEach(mustache => {
             let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split('+'),
-                value = this.dataTypesGet(dataTypes)
+                value = this.expressionGet(dataTypes)
             if (value == null) {
                 text = text.replace(mustache, '')
             } else {
@@ -589,13 +590,13 @@ class Link {
         if (matches.length === 1) {
             //判断是否为函数
             let fn = cs.match(/(.*)\(.*\)/)
-            thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, cs.split('.'))
+            thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, cs)
             boolean = thisClassName ? true : false
         } else {
             thisClassName = matches[0].trim()
             let dataType = matches[1].trim(),
                 fn = dataType.match(/(.*)\(.*\)/)
-            boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType.split('.'))
+            boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType)
         }
         return { thisClassName, boolean }
     }
@@ -611,7 +612,7 @@ class Link {
                 dataType = matches[1],
                 fn = dataType.match(/(.*)\(.*\)/)
             //判断是否为函数
-            thisView.node.style[styleName] = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType.split('.'))
+            thisView.node.style[styleName] = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType)
         })
     }
 
@@ -621,6 +622,7 @@ class Link {
 
     //注册组件
     static component(options) {
+        Link.components = Link.components || []
         let node = document.getElementById(options.template)
         if (node == null) {
             throw new Error(`Can't find template '${options.template}'`)
@@ -653,8 +655,4 @@ class Link {
         }
         this.$children.push(new Link(newCpn))
     }
-
 }
-
-Link.components = []
-Link.$store = {}

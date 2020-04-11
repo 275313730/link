@@ -12,8 +12,6 @@ const game = {
     },
     mounted() {
         this.init()
-        Link.$store.X = 0
-        Link.$store.O = 0
     },
     methods: {
         init() {
@@ -70,5 +68,19 @@ const game = {
             }
             this.winner = null
         }
+    }
+}
+
+const score = {
+    el: "score",
+    data() {
+        return {
+            X: 0,
+            O: 0
+        }
+    },
+    updated() {
+        this.X = Link.$store.X
+        this.O = Link.$store.O
     }
 }
