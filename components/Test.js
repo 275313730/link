@@ -1,13 +1,14 @@
 Link.component({
-    template: 'test',
+    name: 'test',
+    template: test,
     data() {
         return {
-            test: 'Component-test'
+            content: 'Component-test'
         }
     },
     methods: {
         click() {
-            this.test = 'keep-Alive'
+            this.content = 'keep-Alive'
         }
     }
 }) 

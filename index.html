@@ -105,7 +105,7 @@
 <template id='game'>
     <div class="game">
         <div class="container">
-            <div class="grid" @for="(value,index) in arr" @click='print(index)'>
+            <div class="grid" each="(value,index) of arr" @click='print(index)'>
                 {{value}}
             </div>
         </div>
@@ -113,7 +113,9 @@
             <a class="btn" @click="reset()">Reset</a>
             <a class="btn" @click="undo()">Undo</a>
         </div>
-        <test></test>
+        <div each="value of arr">
+            <test></test>
+        </div>
     </div>
 </template>
 
@@ -125,15 +127,14 @@
 </template>
 
 <template id="test">
-    <div>
-        <div @click='click()'>{{test}}</div>
-    </div>
+    <div @click='click()'>{{content}}</div>
 </template>
 
 <script src="modules/Link.js"></script>
 <script src="modules/link-router.js"></script>
-<script src="links/Components.js"></script>
-<script src="links/Views.js"></script>
-<script src="app.js"></script>
+<script src="components/Test.js"></script>
+<script src="views/Game.js"></script>
+<script src="views/Score.js"></script>
+<script src="App.js"></script>
 
 </html>

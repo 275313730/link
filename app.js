@@ -1,15 +1,14 @@
 Link.$store = { X: 0, O: 0 }
-
 new Link({
     el: 'app',
     router: {
         alive: true,
         routes: [{
             path: 'game',
-            component: game
+            component: Game
         }, {
             path: 'score',
-            component: score
+            component: Score
         }]
     }
 })

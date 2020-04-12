@@ -1,8 +1,9 @@
-const game = {
+const Game = {
     el: 'game',
     data() {
         return {
             arr: [],
+            att: [1, 2, 3],
             isX: true,
             caling: false,
             winner: null,
@@ -68,19 +69,5 @@ const game = {
             }
             this.winner = null
         }
-    }
-}
-
-const score = {
-    el: "score",
-    data() {
-        return {
-            X: 0,
-            O: 0
-        }
-    },
-    updated() {
-        this.X = Link.$store.X
-        this.O = Link.$store.O
     }
 }

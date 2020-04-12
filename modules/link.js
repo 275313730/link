@@ -12,6 +12,7 @@ class Link {
         // 数据
         this.data = options.data || null
         this.methods = Object.freeze(options.methods) || null
+        this.props = options.props || null
 
         // 生命钩子函数
         this.mounted = Object.freeze(options.mounted) || null
@@ -47,10 +48,10 @@ class Link {
     checkOptions(options) {
         if (options.el == null) {
             if (options.template == null) {
-                throw new Error(`Property 'el' or 'template' is not defined`)
+                throw new Error(`Property "el" or "template" is not defined`)
             }
         } else if (document.getElementById(options.el) == null) {
-            throw new Error(`Can not find element '${options.el}'`)
+            throw new Error(`Can not find element "${options.el}"`)
         }
     }
 
@@ -78,14 +79,14 @@ class Link {
         this.alive === false && this.mounted && this.mounted.call(this.$data)
 
         // 遍历组件节点并进行view绑定
-        this.nodeTraversal(this.node)
+        this.nodeTravel(this.node)
 
         // 将$parent和$children传入$data
         this.$data.$parent = this.$parent
         this.$data.$children = this.$children
 
         // 刷新页面
-        this.notify(this)
+        this.$data && this.notify()
 
         // 刷新页面后调用一次updated
         this.updated && this.updated.call(this.$data)
@@ -99,7 +100,7 @@ class Link {
         let _this = this,
             arrayProto = Array.prototype,
             arrayMethods = Object.create(arrayProto),
-            methodsList = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse']
+            methodsList = ["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]
 
         methodsList.forEach(method => {
             const original = arrayMethods[method]
@@ -123,12 +124,15 @@ class Link {
     destroy() {
         // 销毁前
         this.beforeDestroy && this.beforeDestroy.call(this.$data)
+
+        // 销毁$data,views和其他生命钩子函数
+        this.views = []
         this.$data = null
         this.mounted = null
         this.updated = null
         this.beforeDestroy = null
 
-        // 销毁$data和其他生命钩子函数
+        // 销毁后
         this.destroyed && this.destroyed.call(this.$data)
         this.destroyed = null
     }
@@ -178,48 +182,35 @@ class Link {
                 value = newValue
                 _this.notify(key)
             },
-            enumerable: typeof (data) === 'object' ? true : false,
+            enumerable: typeof (data) === "object" ? true : false,
             configurable: true,
         })
     }
 
     // 获取data的值
     dataGet(data, key) {
-        const keyArr = key.split('.')
+        const keyArr = key.split(".")
         keyArr.forEach(key => {
             data = data[key]
         })
         return data
     }
 
-    // 获取表达式的值
-    expressionGet(keys) {
-        let value = null
-        keys.forEach(key => {
-            let _value = this.dataGet(this.$data, key)
-            if (_value === undefined) {
-                _value = isNaN(Number(key)) ? key : Number(key)
-            }
-            value = (value == null) ? _value : value + _value
-        })
-        return value
-    }
-
     /*
         View Module
     */
 
-    // 声明Dom事件
-    events = ["@click", "@dblclick", "@mouseover", "@mouseleave", "@mouseenter", "@mouseup", "@mousedown", "@mousemove", "@mouseout", "@keydown", "@keyup", "@keypress", "@select", "@change", "@focus", "@submit", "@input", "@copy", "@cut", "@paste", "@drag", "@drop", "@dragover", "@dragend", "@dragstart", "@dragleave", "@dragenter"]
-
     // 声明Dom属性
-    attributes = ['@for', '@link', '@class', '@style']
+    attributes = ["each", "link", "$class", "$style"]
 
     // 替换组件标签内容
     replaceCpnHTML() {
-        let prev = this.node.previousSibling
-        this.node.outerHTML = this.template
-        this.node = prev.nextElementSibling
+        const newNode = document.createElement('div')
+        this.node.parentNode.insertBefore(newNode, this.node)
+        newNode.outerHTML = this.template
+        let prev = this.node.previousElementSibling
+        this.node.parentNode.removeChild(this.node)
+        this.node = prev
     }
 
     // 在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
@@ -234,41 +225,41 @@ class Link {
     }
 
     // node遍历
-    nodeTraversal(node) {
-        let childNodes = node.childNodes
+    nodeTravel(node) {
         // 匹配语法
-        for (let child of childNodes) {
-            if (child.nodeType === 1) {
-                if (this.isCpnNode(child)) {
-                    continue
-                }
-                this.normalMatch(child)
-                this.eventMatch(child)
-            } else if (child.nodeType === 3) {
-                this.mustacheBind(child)
+        if (node.nodeType === 1) {
+            if (this.isCpnNode(node)) {
+                return
             }
-            if (child.childNodes != null) {
-                this.nodeTraversal(child)
+            this.attrMatch(node)
+            this.eventMatch(node)
+        } else if (node.nodeType === 3) {
+            this.mustacheBind(node)
+        }
+        let childNodes = node.childNodes
+        if (childNodes != null) {
+            for (let child of childNodes) {
+                this.nodeTravel(child)
             }
         }
     }
 
-    // 匹配基本语法
-    normalMatch(child) {
+    // 匹配标签属性
+    attrMatch(child) {
         for (const value of this.attributes) {
             if (child.getAttribute(value)) {
                 switch (value) {
-                    case '@link':
+                    case "link":
                         this.linkBind(child)
                         return
-                    case '@class':
+                    case "$class":
                         this.classBind(child)
                         return
-                    case '@style':
+                    case "$style":
                         this.styleBind(child)
                         return
-                    case '@for':
-                        this.forBind(child)
+                    case "each":
+                        this.eachBind(child)
                         return
                 }
             }
@@ -277,46 +268,45 @@ class Link {
 
     // 匹配事件语法
     eventMatch(child) {
-        this.events.forEach(event => {
-            if (child.getAttribute(event) != null) {
-                this.eventsBind(child, event)
-                child.removeAttribute(event)
+        for (const attr of child.attributes) {
+            if (attr.name.indexOf("@") > -1) {
+                this.eventsBind(child, attr.name)
+                child.removeAttribute(attr.name)
             }
-        })
-        if (child.getAttribute('index')) {
-            child.removeAttribute('index')
+        }
+        if (child.getAttribute("index")) {
+            child.removeAttribute("index")
         }
     }
 
     // 绑定@for语法
-    forBind(node) {
+    eachBind(node) {
         // 获取@for内容
-        let attr = node.getAttribute('@for'),
-            matches = attr.match(/(.+)in(.+)/),
+        let attr = node.getAttribute("each"),
+            matches = attr.match(/(.+)of(.+)/),
             subType = matches[1].match(/\((.+)\)/),
             dataType = matches[2].trim(),
             hasIndex = false
         // 判断subType是否包含index
         if (subType) {
-            subType = subType[1].split(',')[0].trim()
+            subType = subType[1].split(",")[0].trim()
             hasIndex = true
         } else {
             subType = matches[1].trim()
         }
-        node.removeAttribute('@for')
+        node.removeAttribute("each")
         // 复制一个新的节点
         let newNode = node.cloneNode()
         newNode.innerHTML = node.innerHTML
         // 替换HTML的mustache
-        let thisNode = node,
-            innerHTML = thisNode.innerHTML
+        let innerHTML = node.innerHTML
         while (innerHTML != innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)) {
             innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
         }
-        thisNode.innerHTML = innerHTML
+        node.innerHTML = innerHTML
         // 设置index
-        hasIndex && thisNode.setAttribute('index', 0)
-        this.viewSet({ node: thisNode, template: dataType, props: { subType: subType, hasIndex: hasIndex, length: 1, nodeTemplate: newNode }, type: "for" })
+        hasIndex && node.setAttribute("index", 0)
+        this.viewSet({ node: node, template: dataType, props: { subType: subType, hasIndex: hasIndex, length: 1, nodeTemplate: newNode }, type: "each" })
     }
 
     // 绑定mustache语法
@@ -324,66 +314,27 @@ class Link {
         let text = node.data,
             mustaches = text.match(/(\{\{.+?\}\})/g)
         if (mustaches == null) { return }
-        mustaches.forEach(mustache => {
-            if (text.indexOf(mustache) === -1 && text.match(mustache) == null) { return }
-            text = replaceExpression(text, mustache)
-        });
         this.viewSet({ node: node, template: text, type: "mustache" })
-
-        // 处理mustache表达式
-        function replaceExpression(text, mustache) {
-            let mathes = mustache.match(/\{\{(.*)\}\}/),
-                dataTypes = mathes[1].split('+')
-            dataTypes.forEach(dataType => {
-                // 先分离再结合
-                let typeArr = dataType.split('.')
-                typeArr.forEach((type, index) => {
-                    if (type.match(/(.*)\[(\d+)\]/)) {
-                        let matches = type.match(/(.*)\[(\d+)\]/)
-                        typeArr.splice(index, 1, matches[1], matches[2])
-                    }
-                })
-                typeArr = typeArr.join('.')
-                text = text.replace(dataType, typeArr)
-            })
-            return text
-        }
     }
-
-
 
     // 绑定link语法
     linkBind(node) {
-        let data = this.$data,
-            attr = node.getAttribute("@link"),
-            dataTypes = attr.split('+'),
-            value = null
-        if (dataTypes.length === 1) {
-            value = this.dataGet(data, dataTypes[0])
-        } else {
-            dataTypes.forEach(dataType => {
-                let _value = this.dataGet(data, dataType) || (isNaN(Number(dataType)) ? dataType : Number(dataType))
-                value = value == null ? _value : value + _value
-            })
-        }
-        if (value == null) {
-            throw new Error(`${attr} is not defined`)
-        }
+        let attr = node.getAttribute("link")
+        if (attr == null) { return }
         // 判断tagName
-        if (node.tagName === 'INPUT') {
+        if (node.tagName === "INPUT") {
             inputBind(node)
-        } else {
-            node.innerText = value
         }
         this.viewSet({ node: node, template: `{{${attr}}}`, type: "link" })
-        node.removeAttribute("@link")
+        node.removeAttribute("link")
 
         // input双向绑定
         function inputBind(node) {
+            let data = this.$data
             node.value = isNaN(Number(value)) ? value : Number(value)
-            node.addEventListener('input', () => {
+            node.addEventListener("INPUT", () => {
                 let _value = node.value,
-                    keyArr = attr.split('.')
+                    keyArr = attr.split(".")
                 for (const key in keyArr) {
                     if (key === keyArr.length - 1) {
                         data[key] = _value
@@ -395,18 +346,18 @@ class Link {
         }
     }
 
-    // 绑定@class语法
+    // 绑定$class语法
     classBind(node) {
         this.viewSet({
-            node: node, template: node.getAttribute('@class'), props: { class: node.getAttribute("class") }, type: "class"
+            node: node, template: node.getAttribute("$class"), props: { class: node.getAttribute("class") }, type: "class"
         })
-        node.removeAttribute('@class')
+        node.removeAttribute("$class")
     }
 
-    // 绑定@style语法
+    // 绑定$style语法
     styleBind(node) {
-        this.viewSet({ node: node, template: (node.getAttribute("style") || "") + node.getAttribute('@style'), type: "style" })
-        node.removeAttribute('@style')
+        this.viewSet({ node: node, template: (node.getAttribute("style") || "") + node.getAttribute("$style"), type: "style" })
+        node.removeAttribute("$style")
     }
 
     // 绑定events语法
@@ -424,9 +375,9 @@ class Link {
             node.addEventListener(event, function (args) {
                 _this[fn](args)
             })
-        } else if (args.match(/index/) && node.getAttribute('index')) {
-            let index = node.getAttribute('index')
-            args = args.replace('index', index)
+        } else if (args.match(/index/) && node.getAttribute("index")) {
+            let index = node.getAttribute("index")
+            args = args.replace("index", index)
             node.addEventListener(event, function () {
                 _this[fn](args)
             })
@@ -447,19 +398,19 @@ class Link {
             // key为null时刷新全部视图
             if (key != null && view.template.match(key) == null) { return }
             switch (view.type) {
-                case 'for':
-                    this.forRender(view)
+                case "each":
+                    this.eachRender(view)
                     break
-                case 'class':
+                case "class":
                     this.classRender(view)
                     break
-                case 'style':
+                case "style":
                     this.styleRender(view)
                     break
-                case 'link':
+                case "link":
                     this.textRender(view)
                     break
-                case 'mustache':
+                case "mustache":
                     this.textRender(view)
                     break
             }
@@ -467,43 +418,47 @@ class Link {
         })
     }
 
-    // 渲染页面节点(for语法)
-    forRender(thisView) {
+    // 渲染页面节点(each语法)
+    eachRender(thisView) {
+        const _this = this
         let value = this.dataGet(this.$data, thisView.template)
         if (value.length > thisView.props.length) {
-            addNode.call(this, thisView, value)
+            addNode(thisView, value)
         } else if (value.length < thisView.props.length) {
-            delNode.call(this, thisView, value)
+            delNode(thisView, value)
         }
         this.viewSet(thisView)
-        this.updated && this.updated.call(this.$data)
+        this.updated && this.updated(this.$data)
 
         // 节点添加
-        function addNode(thisView, value) {
-            while (value.length > thisView.props.length) {
+        function addNode(view, value) {
+            while (value.length > view.props.length) {
                 // 复制节点
-                let nodeTemplate = thisView.props.nodeTemplate,
+                let nodeTemplate = view.props.nodeTemplate,
                     newNode = nodeTemplate.cloneNode()
                 newNode.innerHTML = nodeTemplate.innerHTML
                 // 插入节点
-                thisView.node.parentNode.insertBefore(newNode, thisView.node.nextSibling)
-                // 更新当前节点
-                thisView.node = newNode
-                replaceNodeHTML(thisView)
-                // 设置index
-                if (thisView.props.hasIndex) {
-                    thisView.node.setAttribute('index', thisView.props.length)
+                if (view.node.nextElementSibling) {
+                    view.node.parentNode.insertBefore(newNode, view.node.nextElementSibling)
+                } else {
+                    view.node.parentNode.appendChild(newNode)
                 }
-                thisView.props.length++
-                refreshView.call(this, thisView)
-                this.nodeTraversal(thisView.node.parentNode)
+                // 更新当前节点
+                view.node = newNode
+                replaceNodeHTML(view)
+                // 设置index
+                if (view.props.hasIndex) {
+                    view.node.setAttribute("index", view.props.length)
+                }
+                view.props.length++
+                refreshView(view)
             }
         }
 
         // 节点减少
         function delNode(thisView, value) {
             while (value.length < thisView.props.length) {
-                refreshView.call(this, thisView)
+                refreshView(thisView)
                 let prevNode = thisView.node.previousSibling
                 thisView.node.parentNode.removeChild(thisView.node)
                 thisView.node = prevNode
@@ -512,29 +467,30 @@ class Link {
         }
 
         // 替换节点内容
-        function replaceNodeHTML(thisView) {
-            let innerHTML = thisView.node.innerHTML,
-                subType = thisView.props.subType,
-                length = thisView.props.length
-            while (innerHTML != innerHTML.replace(`{{${subType}}}`, `{{${thisView.template}.${length}}}`)
+        function replaceNodeHTML(view) {
+            let innerHTML = view.node.innerHTML,
+                subType = view.props.subType,
+                length = view.props.length
+            while (innerHTML != innerHTML.replace(`{{${subType}}}`, `{{${view.template}.${length}}}`)
             ) {
-                innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${thisView.template}.${length}}}`)
+                innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${view.template}.${length}}}`)
             }
-            thisView.node.innerHTML = innerHTML
+            view.node.innerHTML = innerHTML
         }
 
         // 更新视图
         function refreshView(thisView) {
-            this.views = this.views.filter(view => {
-                return view.type === 'for' && view.node === thisView.node ? true : false
+            _this.views = _this.views.filter(view => {
+                return view.type !== "each" && view.node !== thisView.node ? true : false
             })
         }
     }
 
     textRender(thisView) {
-        const text = replaceText.call(this, thisView)
-        if (thisView.type === 'link') {
-            if (thisView.node.nodeName === 'INPUT') {
+        const _this = this,
+            text = replaceText(thisView)
+        if (thisView.type === "link") {
+            if (thisView.node.nodeName === "INPUT") {
                 thisView.node.value = text
             } else {
                 thisView.node.innerText = text
@@ -548,8 +504,8 @@ class Link {
             let text = thisView.template,
                 mustaches = text.match(/\{\{(.+?)\}\}/g)
             mustaches.forEach(mustache => {
-                let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split('+'),
-                    value = this.expressionGet(dataTypes)
+                let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split("+"),
+                    value = expressionGet(dataTypes)
                 if (value == null) {
                     text = text.replace(mustache, '')
                 } else {
@@ -558,15 +514,29 @@ class Link {
             })
             return text
         }
+
+        // 获取表达式的值
+        function expressionGet(keys) {
+            let value = null
+            keys.forEach(key => {
+                let _value = _this.dataGet(_this.$data, key)
+                if (_value === undefined) {
+                    _value = isNaN(Number(key)) ? key : Number(key)
+                }
+                value = (value == null) ? _value : value + _value
+            })
+            return value
+        }
     }
 
     // 渲染页面class
     classRender(thisView) {
+        const _this = this
         //拆分class
-        let classArr = thisView.template.split(','),
+        let classArr = thisView.template.split(","),
             className = thisView.props.class
         classArr.forEach(cs => {
-            let { thisClassName, boolean } = getClass.call(this, cs)
+            let { thisClassName, boolean } = getClass(cs)
             //修改className
             if (boolean) {
                 className += ` ${thisClassName}`
@@ -574,24 +544,24 @@ class Link {
         })
         thisView.node.className = className
 
-        // 获取@class语法的值
+        // 获取$class语法的值
         function getClass(cs) {
             let boolean,
                 thisClassName = "",
-                matches = cs.split(':')
+                matches = cs.split(":")
             // 判断是否为对象语法
             // 对象语法的key=className,value=boolean
             // 非对象语法直接获取变量值作为className,boolean根据className取值
             if (matches.length === 1) {
                 // 判断是否为函数
                 let fn = cs.match(/(.*)\(.*\)/)
-                thisClassName = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, cs)
+                thisClassName = fn ? _this[fn[1]](fn[2]) : _this.dataGet(_this.$data, cs)
                 boolean = thisClassName ? true : false
             } else {
                 thisClassName = matches[0].trim()
                 let dataType = matches[1].trim(),
                     fn = dataType.match(/(.*)\(.*\)/)
-                boolean = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType)
+                boolean = fn ? _this[fn[1]](fn[2]) : _this.dataGet(_this.$data, dataType)
             }
             return { thisClassName, boolean }
         }
@@ -600,10 +570,10 @@ class Link {
     // 渲染页面style
     styleRender(thisView) {
         // 拆分style
-        let styleArr = thisView.template.split(';')
+        let styleArr = thisView.template.split(";")
         styleArr.forEach(style => {
             if (style == null || style === "") { return }
-            let matches = style.split(':'),
+            let matches = style.split(":"),
                 styleName = matches[0].trim(),
                 dataType = matches[1],
                 fn = dataType.match(/(.*)\(.*\)/)
@@ -619,13 +589,15 @@ class Link {
     // 注册组件
     static component(options) {
         Link.components = Link.components || []
-        let node = document.getElementById(options.template)
-        if (node == null) {
-            throw new Error(`Can't find template '${options.template}'`)
+        let node = options.template
+        if (node instanceof Object) {
+            if (node == null) {
+                throw new Error(`Can"t find template '${options.template}"`)
+            }
+            options.template = node.innerHTML
+            node.parentNode.removeChild(node)
         }
-        options.template = node.innerHTML
-        node.parentNode.removeChild(node)
-        Link.components.push(options)
+        Link.components.push(Object.assign({}, options))
     }
 
     // 检查是否为子组件
@@ -643,11 +615,11 @@ class Link {
     // 创建子组件实例
     newCpn(component, child) {
         let newCpn = Object.assign({}, component)
-        newCpn.parent = this
+        newCpn.parent = this.$data
         newCpn.node = child
         if (this.aliveData && this.aliveData.$children) {
             newCpn.aliveData = this.aliveData.$children[0]
-            this.aliveData.$children.splice(0, 1)
+            this.aliveData.$children.shift()
         }
         this.$children.push(new Link(newCpn))
     }
