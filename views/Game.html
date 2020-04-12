@@ -1,51 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <style>
-        body {
-            width: 100vw;
-            height: 100vh;
-            user-select: none;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
-
-        #app .str {
-            text-align: center;
-            font-size: 2em;
-            font-weight: bold;
-        }
-
-        #app nav {
-            font-size: 1.5em;
-            text-align: center;
-            margin: auto;
-            position: relative;
-            margin-bottom: 5px;
-        }
-
-        #app router-link:hover {
-            cursor: pointer;
-            color: red;
-        }
-    </style>
-</head>
-
-<body>
-    <div id="app">
-        <div class="str">Tic-Tac-Toe</div>
-        <nav>
-            <router-link to='game'>game</router-link> |
-            <router-link to='score'>score</router-link>
-        </nav>
-        <router-view></router-view>
-    </div>
-</body>
 <template id='game'>
     <div class="game">
         <div class="container">
@@ -60,14 +12,7 @@
         <test></test>
     </div>
 </template>
-<template id="score">
-    <div class="score">
-        <div>X win:{{X}}</div>
-        <div>O win:{{O}}</div>
-    </div>
-</template>
-<script src="modules/Link.js"></script>
-<script src="modules/link-router.js"></script>
+
 <script>
     const Game = {
         el: 'game',
@@ -155,22 +100,7 @@
         }
     }
 </script>
-<script>
-    const Score = {
-        el: "score",
-        data() {
-            return {
-                X: 0,
-                O: 0
-            }
-        },
-        updated() {
-            this.X = Link.$store.X
-            this.O = Link.$store.O
-        }
-    }
-</script>
-<script src="App.js"></script>
+
 <style>
     .game {
         margin: auto;
@@ -216,13 +146,3 @@
         color: white;
     }
 </style>
-<style>
-    .score {
-        position: relative;
-        text-align: center;
-        margin: auto;
-        font-size: 2em;
-    }
-</style>
-
-</html>

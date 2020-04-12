@@ -1,0 +1,31 @@
+<template id="score">
+    <div class="score">
+        <div>X win:{{X}}</div>
+        <div>O win:{{O}}</div>
+    </div>
+</template>
+
+<script>
+    const Score = {
+        el: "score",
+        data() {
+            return {
+                X: 0,
+                O: 0
+            }
+        },
+        updated() {
+            this.X = Link.$store.X
+            this.O = Link.$store.O
+        }
+    }
+</script>
+
+<style>
+    .score {
+        position: relative;
+        text-align: center;
+        margin: auto;
+        font-size: 2em;
+    }
+</style>

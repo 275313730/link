@@ -70,7 +70,7 @@ class Link {
         if (this.data) { this.$data = this.data() }
 
         // 遍历$data并defineProperty
-        this.$data && this.dataTraversal(this.$data)
+        this.$data && this.dataTravel(this.$data)
 
         // 将methods中的函数加入$data
         this.methods && this.methodsExpose()
@@ -110,7 +110,7 @@ class Link {
 
                 // 自定义事件
                 if (this.__ob__) {
-                    _this.dataTraversal(this)
+                    _this.dataTravel(this)
                 }
                 _this.notify()
 
@@ -157,14 +157,14 @@ class Link {
     }
 
     // 遍历data
-    dataTraversal(data) {
+    dataTravel(data) {
         for (const key of Object.keys(data)) {
             this.defineProperty(this, data, key, data[key])
             if (data[key] instanceof Object) {
                 if (data[key].length === 0) {
                     data[key].__ob__ = true
                 } else {
-                    this.dataTraversal(data[key])
+                    this.dataTravel(data[key])
                 }
             }
         }
@@ -208,9 +208,8 @@ class Link {
         const newNode = document.createElement('div')
         this.node.parentNode.insertBefore(newNode, this.node)
         newNode.outerHTML = this.template
-        let prev = this.node.previousElementSibling
-        this.node.parentNode.removeChild(this.node)
-        this.node = prev
+        this.node = this.node.previousElementSibling
+        this.node.parentNode.removeChild(this.node.nextElementSibling)
     }
 
     // 在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
@@ -228,7 +227,7 @@ class Link {
     nodeTravel(node) {
         // 匹配语法
         if (node.nodeType === 1) {
-            if (this.isCpnNode(node)) {
+            if (Link.components && this.isCpnNode(node)) {
                 return
             }
             this.attrMatch(node)
@@ -597,7 +596,7 @@ class Link {
             options.template = node.innerHTML
             node.parentNode.removeChild(node)
         }
-        Link.components.push(Object.assign({}, options))
+        Link.components.push(options)
     }
 
     // 检查是否为子组件
