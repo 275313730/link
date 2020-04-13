@@ -1,8 +1,7 @@
 <template id='game'>
     <div class="game">
         <div class="container">
-            <div class="grid" each="(value,index) of arr" @click='print(index)'>
-                {{value}}
+            <div class="grid" each="value of arr" @click='print(index,event)' link="value">
             </div>
         </div>
         <div class="btn-wrapper">
@@ -45,7 +44,7 @@
                     this.arr[i] = ''
                 }
             },
-            print(index) {
+            print(index, e) {
                 if (this.caling) {
                     return
                 }

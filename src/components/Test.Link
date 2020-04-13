@@ -1,5 +1,5 @@
 <template id="test">
-    <div each="value of arr">
+    <div>
         <cpn></cpn>
     </div>
 </template>
@@ -7,12 +7,7 @@
 <script>
     Link.component({
         name: 'test',
-        template: test,
-        data() {
-            return {
-                arr: [1, 2]
-            }
-        }
+        template: test
     })
 </script>
 

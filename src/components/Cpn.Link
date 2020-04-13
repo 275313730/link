@@ -1,0 +1,36 @@
+<template id="cpn">
+    <div class="cpn">
+        <img each="src of srcs" @click="changeImg()" $src="src"></img>
+    </div>
+</template>
+
+<script>
+    Link.component({
+        name: 'cpn',
+        template: cpn,
+        data() {
+            return {
+                srcs: ["src/pic.png", "src/test.jpg"]
+            }
+        },
+        methods: {
+            changeImg() {
+                let temp = this.srcs[0]
+                this.srcs[0] = this.srcs[1]
+                this.srcs[1] = temp
+            }
+        }
+    })
+</script>
+
+<style>
+    .cpn {
+        position: relative;
+        width: 30%;
+        margin: auto;
+    }
+
+    img {
+        width: 100%;
+    }
+</style>

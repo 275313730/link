@@ -5,9 +5,11 @@ new Link({
         alive: true,
         routes: [{
             path: 'game',
+            title: 'Game',
             component: Game
         }, {
             path: 'score',
+            title: 'Score',
             component: Score
         }]
     }

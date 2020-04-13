@@ -59,6 +59,7 @@ class Router {
                 window.history.replaceState(route.template, route.path, `#${route.path}`);
                 this.replaceHTML(route.template)
                 this.setLink(route.component, path)
+                document.title = route.title || route.path
                 return
             }
         }
@@ -104,14 +105,14 @@ class Router {
         }
     }
 
-    dataCopy(data, $data) {
-        for (const key in $data) {
-            if (key === '$parent' || key === '$children' || $data[key] instanceof Function) {
+    dataCopy(targetData, currData) {
+        for (const key in currData) {
+            if (key === '$parent' || key === '$children' || currData[key] instanceof Function) {
                 continue
             }
-            data[key] = $data[key]
-            if (typeof ($data[key]) === 'object') {
-                this.dataCopy(data[key], $data[key])
+            targetData[key] = currData[key]
+            if (typeof (currData[key]) === 'object') {
+                this.dataCopy(targetData[key], currData[key])
             }
         }
     }

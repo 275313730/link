@@ -1,7 +1,8 @@
-// Change the files according to your files
-// Put this script in the index.html for the first script
+// import和模板解析的替代方案
+// 根据项目内容修改files内容
 (function () {
     const files = {
+        publicPath: 'src',
         entry: 'App',
         modules: ['Link', 'link-router'],
         views: ['Game', 'Score'],
@@ -22,12 +23,12 @@
         parseCpn('views', fileName)
     });
 
-    document.write(`<script src="${files.entry}.js" ></script>`)
+    document.write(`<script src="${files.publicPath}/${files.entry}.js" ></script>`)
     pack.parentNode.removeChild(pack)
 
     function parseCpn(path, fileName) {
         const tags = ['template', 'script', 'style'],
-            text = getFileText(`${path}/${fileName}.Link`)
+            text = getFileText(`${files.publicPath}/${path}/${fileName}.Link`)
         tags.forEach(tag => {
             const start = text.indexOf(`<${tag}`),
                 end = text.indexOf(`/${tag}>`) + `/${tag}>`.length
