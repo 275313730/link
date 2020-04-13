@@ -1,44 +1,47 @@
-// change the urls according to your files
-// put this script in the index.html for the first script
-const urls = {
-    entry: 'App',
-    modules: ['Link', 'link-router'],
-    views: ['Game', 'Score'],
-    components: ['Test', 'Cpn']
-}
+// Change the files according to your files
+// Put this script in the index.html for the first script
+(function () {
+    const files = {
+        entry: 'App',
+        modules: ['Link', 'link-router'],
+        views: ['Game', 'Score'],
+        components: ['Test', 'Cpn']
+    }
 
-const pack = document.getElementsByTagName('script')[0]
+    const pack = document.getElementsByTagName('script')[0]
 
-urls.modules.forEach(name => {
-    document.write(`<script type="text/javascript" src="modules/${name}.js"></script>`);
-})
-
-urls.components.forEach(url => {
-    parseCpn(url)
-});
-
-urls.views.forEach(url => {
-    parseCpn(url)
-});
-
-document.write(`<script src="${urls.entry}.js" ></script>`)
-
-pack.parentNode.removeChild(pack)
-
-function parseCpn(url) {
-    const tags = ['template', 'script', 'style'],
-        text = getFileText(`views/${url}.Link`)
-
-    tags.forEach(tag => {
-        const start = text.indexOf(`<${tag}`),
-            end = text.indexOf(`/${tag}>`) + `/${tag}>`.length
-        document.write(text.slice(start, end));
+    files.modules.forEach(name => {
+        document.write(`<script type="text/javascript" src="modules/${name}.js"></script>`);
     })
-}
 
-function getFileText(url) {
-    const xhr = new XMLHttpRequest()
-    xhr.open('GET', url, false)
-    xhr.send()
-    return xhr.responseText
-}
+    let cpns = 0
+
+    files.components.forEach(fileName => {
+        parseCpn('components', fileName)
+    });
+
+    files.views.forEach(fileName => {
+        parseCpn('views', fileName)
+    });
+
+    document.write(`<script src="${files.entry}.js" ></script>`)
+    pack.parentNode.removeChild(pack)
+
+    function parseCpn(path, fileName) {
+        const tags = ['template', 'script', 'style'],
+            text = getFileText(`${path}/${fileName}.Link`)
+        tags.forEach(tag => {
+            const start = text.indexOf(`<${tag}`),
+                end = text.indexOf(`/${tag}>`) + `/${tag}>`.length
+            document.write(text.slice(start, end));
+        })
+        cpns++
+    }
+
+    function getFileText(url) {
+        const xhr = new XMLHttpRequest()
+        xhr.open('GET', url, false)
+        xhr.send()
+        return xhr.responseText
+    }
+})()
