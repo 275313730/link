@@ -14,8 +14,6 @@
         document.write(`<script type="text/javascript" src="modules/${name}.js"></script>`);
     })
 
-    let cpns = 0
-
     files.components.forEach(fileName => {
         parseCpn('components', fileName)
     });
@@ -35,7 +33,6 @@
                 end = text.indexOf(`/${tag}>`) + `/${tag}>`.length
             document.write(text.slice(start, end));
         })
-        cpns++
     }
 
     function getFileText(url) {
