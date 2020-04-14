@@ -5,8 +5,8 @@
         publicPath: 'src',
         entry: 'App',
         modules: ['Link', 'link-router'],
-        views: ['Game', 'Score'],
-        components: ['Test', 'Cpn']
+        views: ['Game', 'Score', 'Img'],
+        components: ['Cpn']
     }
 
     const pack = document.getElementsByTagName('script')[0]

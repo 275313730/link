@@ -1,0 +1,28 @@
+<template id="img">
+    <div class="img">
+        <img $src="src"></img>
+    </div>
+</template>
+
+<script>
+    const Img = {
+        el: "img",
+        data() {
+            return {
+                src: ''
+            }
+        },
+        updated() {
+            this.src = Link.$router.params
+        }
+    }
+</script>
+
+<style>
+    .img {
+        position: relative;
+        text-align: center;
+        margin: auto;
+        font-size: 2em;
+    }
+</style>

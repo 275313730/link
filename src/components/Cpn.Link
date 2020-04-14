@@ -1,6 +1,6 @@
 <template id="cpn">
     <div class="cpn">
-        <img each="src of srcs" @click="changeImg()" $src="src"></img>
+        <img each="src of srcs" @click="changeImg(index)" $src="src"></img>
     </div>
 </template>
 
@@ -10,14 +10,12 @@
         template: cpn,
         data() {
             return {
-                srcs: ["src/pic.png", "src/test.jpg"]
+                srcs: ["src/imgs/pic.png", "src/imgs/test.jpg"]
             }
         },
         methods: {
-            changeImg() {
-                let temp = this.srcs[0]
-                this.srcs[0] = this.srcs[1]
-                this.srcs[1] = temp
+            changeImg(index) {
+                Link.$router.$push('img', this.srcs[index])
             }
         }
     })

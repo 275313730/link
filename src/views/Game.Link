@@ -8,7 +8,7 @@
             <a class="btn" @click="reset()">Reset</a>
             <a class="btn" @click="undo()">Undo</a>
         </div>
-        <test></test>
+        <cpn></cpn>
     </div>
 </template>
 

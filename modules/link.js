@@ -92,7 +92,9 @@ class Link {
         this.updated && this.updated.call(this.$data)
 
         // 传入router
-        this.router && new Router(Object.assign(this.router, { el: this.el }))
+        if (this.router) {
+            Link.$router = new Router(Object.assign(this.router, { el: this.el }))
+        }
     }
 
     // 数组方法改写
@@ -112,7 +114,7 @@ class Link {
                 if (this.__ob__) {
                     _this.dataTravel(this)
                 }
-                _this.notify()
+                _this.views.length > 0 && _this.notify()
 
                 // 返回值
                 return result

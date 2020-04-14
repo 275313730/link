@@ -3,14 +3,21 @@ new Link({
     el: 'app',
     router: {
         alive: true,
-        routes: [{
-            path: 'game',
-            title: 'Game',
-            component: Game
-        }, {
-            path: 'score',
-            title: 'Score',
-            component: Score
-        }]
+        routes: [
+            {
+                path: 'game',
+                title: 'Game',
+                component: Game
+            },
+            {
+                path: 'score',
+                title: 'Score',
+                component: Score
+            },
+            {
+                path: 'img',
+                title: 'Img',
+                component: Img
+            }]
     }
 })

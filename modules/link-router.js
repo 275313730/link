@@ -7,6 +7,7 @@ class Router {
         this.link = null
         this.alive = options.alive || false
         this.aliveData = []
+        this.params = null
         this.init()
     }
 
@@ -14,17 +15,17 @@ class Router {
         this.bindEvents()
         this.getTemplate()
         this.alive && this.setAliveData()
-        this.pushHistory(this.routes[0].path)
+        this.$push(this.routes[0].path)
     }
 
     //监听路由事件
     bindEvents() {
         //监听地址栏输入事件
-        window.addEventListener('popstate', () => this.pushHistory(window.location.hash.slice(1)));
+        window.addEventListener('popstate', () => this.$push(window.location.hash.slice(1)));
         //监听元素点击事件
         const links = this.root.getElementsByTagName('router-link');
         for (const link of links) {
-            link.addEventListener('click', () => this.pushHistory(link.getAttribute('to')));
+            link.addEventListener('click', () => this.$push(link.getAttribute('to')));
         }
     }
 
@@ -43,7 +44,7 @@ class Router {
     }
 
     //地址跳转
-    pushHistory(path) {
+    $push(path, params) {
         if (this.link && path == this.link.el) {
             return
         }
@@ -56,7 +57,12 @@ class Router {
         }
         for (const route of this.routes) {
             if (route.path === path) {
-                window.history.replaceState(route.template, route.path, `#${route.path}`);
+                if (params !== undefined) {
+                    window.history.replaceState(route.template, route.path, `#${route.path}:${params}`);
+                } else {
+                    window.history.replaceState(route.template, route.path, `#${route.path}`);
+                }
+                this.params = params
                 this.replaceHTML(route.template)
                 this.setLink(route.component, path)
                 document.title = route.title || route.path
