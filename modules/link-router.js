@@ -58,7 +58,7 @@ class Router {
         for (const route of this.routes) {
             if (route.path === path) {
                 if (params !== undefined) {
-                    window.history.replaceState(route.template, route.path, `#${route.path}:${params}`);
+                    window.history.replaceState(route.template, route.path, `#${route.path}${params}`);
                 } else {
                     window.history.replaceState(route.template, route.path, `#${route.path}`);
                 }

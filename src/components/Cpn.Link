@@ -15,7 +15,7 @@
         },
         methods: {
             changeImg(index) {
-                Link.$router.$push('img', this.srcs[index])
+                Link.$router.$push('img', this.srcs[index].slice(this.srcs[index].lastIndexOf('/')))
             }
         }
     })
@@ -30,5 +30,6 @@
 
     img {
         width: 100%;
+        cursor: pointer;
     }
 </style>

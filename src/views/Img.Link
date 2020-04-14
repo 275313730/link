@@ -1,6 +1,6 @@
 <template id="img">
     <div class="img">
-        <img $src="src"></img>
+        <img $src="src" @click='back()'></img>
     </div>
 </template>
 
@@ -12,8 +12,13 @@
                 src: ''
             }
         },
+        methods:{
+            back(){
+                Link.$router.$push('game')
+            }
+        },
         updated() {
-            this.src = Link.$router.params
+            this.src = 'src/imgs/' + Link.$router.params
         }
     }
 </script>

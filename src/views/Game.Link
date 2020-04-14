@@ -1,8 +1,7 @@
 <template id='game'>
     <div class="game">
         <div class="container">
-            <div class="grid" each="value of arr" @click='print(index,event)' link="value">
-            </div>
+            <div class="grid" each="value of arr" @click='print(index)' link="value"></div>
         </div>
         <div class="btn-wrapper">
             <a class="btn" @click="reset()">Reset</a>
@@ -18,7 +17,6 @@
         data() {
             return {
                 arr: [],
-                att: [1, 2, 3],
                 isX: true,
                 caling: false,
                 winner: null,
@@ -36,15 +34,15 @@
             }
         },
         mounted() {
-            this.init()
+            let i = 0
+            while (i <= 8) {
+                this.arr.push('')
+                i++
+            }
+            this.history.push(Object.assign([], this.arr))
         },
         methods: {
-            init() {
-                for (let i = 0; i < 9; i++) {
-                    this.arr[i] = ''
-                }
-            },
-            print(index, e) {
+            print(index) {
                 if (this.caling) {
                     return
                 }
@@ -80,21 +78,22 @@
                 for (const key in this.arr) {
                     this.arr[key] = ''
                 }
-                this.history.splice(0, this.history.length)
+                this.history.splice(1, this.history.length)
             },
             undo() {
-                if (this.history.length === 0) {
+                if (this.history.length === 1) {
                     return
                 }
                 this.history.pop()
-                if (this.history.length > 0) {
-                    this.arr = Object.assign([], this.history[this.history.length - 1])
+                if (this.history.length > 1) {
+                    for (const key in this.arr) {
+                        this.arr[key] = this.history[this.history.length - 1][key]
+                    }
                     this.isX = !this.isX
+                    this.winner = null
                 } else {
-                    this.init()
-                    this.isX = true
+                    this.reset()
                 }
-                this.winner = null
             }
         }
     }

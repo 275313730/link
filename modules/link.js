@@ -81,20 +81,22 @@ class Link {
         // 遍历组件节点并进行view绑定
         this.nodeTravel(this.node)
 
+        this.createCpns()
+
         // 将$parent和$children传入$data
         this.$data.$parent = this.$parent
         this.$data.$children = this.$children
+
+        // 传入router
+        if (this.router) {
+            Link.$router = new Router(Object.assign(this.router, { el: this.el }))
+        }
 
         // 刷新页面
         this.$data && this.notify()
 
         // 刷新页面后调用一次updated
         this.updated && this.updated.call(this.$data)
-
-        // 传入router
-        if (this.router) {
-            Link.$router = new Router(Object.assign(this.router, { el: this.el }))
-        }
     }
 
     // 数组方法改写
@@ -107,14 +109,18 @@ class Link {
         methodsList.forEach(method => {
             const original = arrayMethods[method]
             Array.prototype[method] = function (...args) {
+                const length = this.length - 1
+
                 // 用数组原方法处理
                 const result = original.apply(this, args)
 
-                // 自定义事件
                 if (this.__ob__) {
-                    _this.dataTravel(this)
+                    for (let key in this) {
+                        if (Number(key) >= length) {
+                            _this.defineProperty(_this, this, key, this[key])
+                        }
+                    }
                 }
-                _this.views.length > 0 && _this.notify()
 
                 // 返回值
                 return result
@@ -160,21 +166,17 @@ class Link {
 
     // 遍历data
     dataTravel(data) {
-        for (const key of Object.keys(data)) {
+        data.__ob__ = true
+        for (const key in data) {
             this.defineProperty(this, data, key, data[key])
             if (data[key] instanceof Object) {
-                if (data[key].length === 0) {
-                    data[key].__ob__ = true
-                } else {
-                    this.dataTravel(data[key])
-                }
+                this.dataTravel(data[key])
             }
         }
     }
 
     // 定义data的setter和getter
     defineProperty(_this, data, key, value) {
-        data.__ob__ = true
         Object.defineProperty(data, key, {
             get() {
                 return value
@@ -304,6 +306,7 @@ class Link {
         node.setAttribute("dataType", dataType)
         node.setAttribute("subType", subType)
         this.viewSet({ node: node, template: dataType, props: { subType: subType, length: 1, nodeTemplate: newNode }, type: "each" })
+        this.notify()
     }
 
     // 绑定mustache语法
@@ -319,6 +322,7 @@ class Link {
         let attr = node.getAttribute("link")
         attr = attr.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
         if (attr == null) { return }
+
         // 判断tagName
         if (node.tagName === "INPUT") {
             inputBind(node)
@@ -590,6 +594,7 @@ class Link {
         })
     }
 
+    // 
     attrRender(view) {
         view.node[view.type] = this.dataGet(this.$data, view.template)
     }
@@ -612,20 +617,20 @@ class Link {
         Link.components.push(options)
     }
 
-    // 检查是否为子组件
+    // 检查是否为Component
     isCpnNode(child) {
         const tagName = child.tagName.toLowerCase()
         for (const cpn of Link.components) {
             if (cpn.name === tagName) {
-                this.newCpn(cpn, child)
+                this.addCpn(cpn, child)
                 return true
             }
         }
         return false
     }
 
-    // 创建子组件实例
-    newCpn(component, child) {
+    // 添加子组件
+    addCpn(component, child) {
         let newCpn = Object.assign({}, component)
         newCpn.parent = this.$data
         newCpn.node = child
@@ -633,6 +638,13 @@ class Link {
             newCpn.aliveData = this.aliveData.$children[0]
             this.aliveData.$children.shift()
         }
-        this.$children.push(new Link(newCpn))
+        this.$children.push(newCpn)
+    }
+
+    // 创建子组件
+    createCpns() {
+        for (const key in this.$children) {
+            this.$children[key] = new Link(this.$children[key])
+        }
     }
 }
