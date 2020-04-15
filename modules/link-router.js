@@ -81,7 +81,7 @@ class Router {
     //设置Link
     setLink(component, path) {
         if (this.link != null && this.alive === false) { this.link.destroy() }
-        if (component.alive === true) {
+        if (component.alive) {
             for (const data of this.aliveData) {
                 let newCpn = Object.assign({}, component)
                 newCpn.node = this.node
@@ -94,6 +94,9 @@ class Router {
             }
         }
         this.link = new Link(Object.assign(component, { node: this.node }))
+        if (this.alive) {
+            component.alive = true
+        }
     }
 
     //保持组件数据
@@ -110,13 +113,10 @@ class Router {
 
     dataCopy(targetData, currData) {
         for (const key in currData) {
-            if (key === '$parent' || key === '$children' || currData[key] instanceof Function) {
+            if (key === '$parent' || key === '$children' || key === 'props' || key === '$refs' || currData[key] instanceof Function) {
                 continue
             }
-            targetData[key] = currData[key]
-            if (typeof (currData[key]) === 'object') {
-                this.dataCopy(targetData[key], currData[key])
-            }
+            targetData[key] = JSON.parse(JSON.stringify(currData[key]))
         }
     }
 }

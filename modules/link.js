@@ -31,6 +31,7 @@ class Link {
 
         // 路由
         this.router = options.router || null
+        this.alive = options.alive || false
         this.aliveData = options.aliveData || null
 
         // 初始化
@@ -58,13 +59,14 @@ class Link {
         this.arrayReconstruct()
 
         // 将数据替换成aliveData(如果存在aliveData)
-        this.aliveData && this.dataReplace()
+        this.alive && this.dataReplace()
 
         // 执行data函数，将数据加入$data
         if (this.data) { this.$data = this.data() }
 
         // 获取props和ref
-        this.$parent && this.propsGet() && this.refSet()
+        this.$parent && this.propsGet()
+        this.$parent && this.refSet()
 
         // 遍历$data并defineProperty
         this.$data && this.dataTravel(this.$data)
@@ -73,7 +75,7 @@ class Link {
         this.methods && this.methodsExpose()
 
         // 判断aliveData是否存在来决定是否执行mounted函数
-        this.aliveData && this.mounted && this.mounted.call(this.$data)
+        !this.alive && this.mounted && this.mounted.call(this.$data)
 
         // 替换组件标签为模板内容
         this.template && this.replaceCpnHTML()
@@ -110,17 +112,14 @@ class Link {
         methodsList.forEach(method => {
             const original = arrayMethods[method]
             Array.prototype[method] = function (...args) {
-                const length = this.length - 1
-
                 // 用数组原方法处理
                 const result = original.apply(this, args)
 
                 if (this.__ob__) {
                     for (let key in this) {
-                        if (Number(key) >= length) {
-                            _this.defineProperty(_this, this, key, this[key])
-                        }
+                        _this.defineProperty(_this, this, key, this[key])
                     }
+                    _this.notify()
                 }
 
                 // 返回值
@@ -292,7 +291,6 @@ class Link {
                 default:
                     if (attr.name.indexOf('$') > -1) {
                         this.attrBind(node, attr.name, attr.value)
-                        break
                     }
             }
         }
@@ -459,7 +457,7 @@ class Link {
             }
             node = node.parentNode
         }
-        throw new Error(`Can not find 'index'`)
+        throw new Error(`Can't use 'index' without 'each' grammer`)
     }
 
     /*
@@ -498,12 +496,14 @@ class Link {
     eachRender(view) {
         const _this = this
         let value = this.dataGet(this.$data, view.template)
+        if (value.length === view.props.length) { return }
         if (value.length > view.props.length) {
             addNode(view, value)
         } else if (value.length < view.props.length) {
             delNode(view, value)
         }
         this.viewSet(view)
+        this.notify()
 
         // 节点添加
         function addNode(view, value) {
@@ -527,6 +527,7 @@ class Link {
                 view.node.setAttribute("index", view.props.length)
                 view.props.length++
                 refreshView(view)
+                _this.nodeTravel(view.node)
             }
         }
 
@@ -698,6 +699,7 @@ class Link {
         newCpn.parent = this.$data
         newCpn.node = child
         if (this.aliveData && this.aliveData.$children) {
+            newCpn.alive = true
             newCpn.aliveData = this.aliveData.$children[0]
             this.aliveData.$children.shift()
         }
