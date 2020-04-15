@@ -14,7 +14,7 @@
         },
         methods:{
             back(){
-                Link.$router.$push('game')
+                Link.$router.$push('home')
             }
         },
         updated() {

@@ -1,6 +1,6 @@
 <template id="cpn">
     <div class="cpn">
-        <img each="src of srcs" @click="changeImg(index)" $src="src"></img>
+        <img each="src of props.srcs" @click="jump(index)" $src="src"></img>
     </div>
 </template>
 
@@ -8,14 +8,9 @@
     Link.component({
         name: 'cpn',
         template: cpn,
-        data() {
-            return {
-                srcs: ["src/imgs/pic.png", "src/imgs/test.jpg"]
-            }
-        },
         methods: {
-            changeImg(index) {
-                Link.$router.$push('img', this.srcs[index].slice(this.srcs[index].lastIndexOf('/')))
+            jump(index) {
+                Link.$router.$push('img', this.props.srcs[index].slice(this.props.srcs[index].lastIndexOf('/')))
             }
         }
     })

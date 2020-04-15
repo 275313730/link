@@ -1,0 +1,24 @@
+<template id='home'>
+    <div class="home">
+        <cpn ~srcs="srcs"></cpn>
+    </div>
+</template>
+
+<script>
+    const Home = {
+        el: 'home',
+        data() {
+            return {
+                srcs: ["src/imgs/pic.png", "src/imgs/test.jpg"]
+            }
+        },
+    }
+</script>
+
+<style>
+    .home {
+        margin: auto;
+        position: relative;
+        text-align: center;
+    }
+</style>

@@ -94,9 +94,6 @@ class Router {
             }
         }
         this.link = new Link(Object.assign(component, { node: this.node }))
-        if (this.alive) {
-            component.alive = true
-        }
     }
 
     //保持组件数据

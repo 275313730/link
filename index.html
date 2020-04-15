@@ -19,30 +19,14 @@
             text-align: center;
             font-size: 2em;
             font-weight: bold;
-        }
-
-        #app nav {
-            font-size: 1.5em;
-            text-align: center;
-            margin: auto;
-            position: relative;
-            margin-bottom: 5px;
-        }
-
-        #app router-link:hover {
-            cursor: pointer;
-            color: red;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 
 <body>
     <div id="app">
-        <div class="str">Tic-Tac-Toe</div>
-        <nav>
-            <router-link to='game'>game</router-link> |
-            <router-link to='score'>score</router-link>
-        </nav>
+        <div class="str">props-test</div>
         <router-view></router-view>
     </div>
 </body>

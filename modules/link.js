@@ -12,7 +12,6 @@ class Link {
         // 数据
         this.data = options.data || null
         this.methods = Object.freeze(options.methods) || null
-        this.props = options.props || null
 
         // 生命钩子函数
         this.mounted = Object.freeze(options.mounted) || null
@@ -21,9 +20,8 @@ class Link {
         this.destroyed = Object.freeze(options.destroyed) || null
 
         // 组件
-        this.components = options.components || null
         this.$parent = options.parent || null
-        this.$children = []
+        this.$children = null
 
         // $data包含data和methods
         this.$data = {}
@@ -33,7 +31,6 @@ class Link {
 
         // 路由
         this.router = options.router || null
-        this.alive = options.alive || false
         this.aliveData = options.aliveData || null
 
         // 初始化
@@ -60,14 +57,14 @@ class Link {
         // 重写数组方法
         this.arrayReconstruct()
 
-        // 替换组件标签为模板内容
-        this.template && this.replaceCpnHTML()
-
         // 将数据替换成aliveData(如果存在aliveData)
         this.aliveData && this.dataReplace()
 
         // 执行data函数，将数据加入$data
         if (this.data) { this.$data = this.data() }
+
+        // 获取props和ref
+        this.$parent && this.propsGet() && this.refSet()
 
         // 遍历$data并defineProperty
         this.$data && this.dataTravel(this.$data)
@@ -75,15 +72,19 @@ class Link {
         // 将methods中的函数加入$data
         this.methods && this.methodsExpose()
 
-        // 判断组件是否alive来决定是否执行mounted函数
-        this.alive === false && this.mounted && this.mounted.call(this.$data)
+        // 判断aliveData是否存在来决定是否执行mounted函数
+        this.aliveData && this.mounted && this.mounted.call(this.$data)
+
+        // 替换组件标签为模板内容
+        this.template && this.replaceCpnHTML()
 
         // 遍历组件节点并进行view绑定
         this.nodeTravel(this.node)
 
+        // 创建子组件实例
         this.createCpns()
 
-        // 将$parent和$children传入$data
+        // 传入parent和children组件
         this.$data.$parent = this.$parent
         this.$data.$children = this.$children
 
@@ -148,6 +149,30 @@ class Link {
     /*
         Data Module
     */
+
+    // propsGet
+    propsGet() {
+        for (const attr of this.node.attributes) {
+            if (attr.name.indexOf('~') > -1) {
+                this.props = this.props || {}
+                const name = attr.name.slice(1)
+                this.props[name] = this.dataGet(this.$parent, attr.value)
+            }
+        }
+        if (this.props) {
+            this.$data.props = this.props
+        }
+    }
+
+    // refsGet
+    refSet() {
+        for (const attr of this.node.attributes) {
+            if (attr.name === 'ref') {
+                this.$parent.$refs = this.$parent.$refs || {}
+                this.$parent.$refs[attr.value] = this.$data
+            }
+        }
+    }
 
     // 将data替换为aliveData
     dataReplace() {
@@ -236,52 +261,58 @@ class Link {
             }
             this.attrMatch(node)
             this.eventMatch(node)
+            let childNodes = node.childNodes
+            if (childNodes != null) {
+                for (let child of childNodes) {
+                    this.nodeTravel(child)
+                }
+            }
+            this.removeAttrs(node)
         } else if (node.nodeType === 3) {
             this.mustacheBind(node)
-        }
-        let childNodes = node.childNodes
-        if (childNodes != null) {
-            for (let child of childNodes) {
-                this.nodeTravel(child)
-            }
         }
     }
 
     // 匹配标签属性
-    attrMatch(child) {
-        if (child.getAttribute("each")) {
-            this.eachBind(child)
+    attrMatch(node) {
+        if (node.getAttribute("each")) {
+            this.eachBind(node)
         }
-        for (const attr of child.attributes) {
+        for (const attr of node.attributes) {
             switch (attr.name) {
                 case "link":
-                    this.linkBind(child)
+                    this.linkBind(node)
                     break
                 case "$class":
-                    this.classBind(child)
+                    this.classBind(node)
                     break
                 case "$style":
-                    this.styleBind(child)
+                    this.styleBind(node)
                     break
                 default:
                     if (attr.name.indexOf('$') > -1) {
-                        this.attrBind(child, attr.name, attr.value)
+                        this.attrBind(node, attr.name, attr.value)
+                        break
                     }
             }
         }
     }
 
     // 匹配事件语法
-    eventMatch(child) {
-        for (const attr of child.attributes) {
+    eventMatch(node) {
+        for (const attr of node.attributes) {
             if (attr.name.indexOf("@") > -1) {
-                this.eventBind(child, attr.name)
-                child.removeAttribute(attr.name)
+                this.eventBind(node, attr.name)
+                node.removeAttribute(attr.name)
             }
         }
-        child.removeAttribute("index")
-        child.removeAttribute('subType')
-        child.removeAttribute('dataType')
+    }
+
+    // 移除node上的临时属性
+    removeAttrs(node) {
+        node.removeAttribute("index")
+        node.removeAttribute('subType')
+        node.removeAttribute('dataType')
     }
 
     // 绑定@for语法
@@ -320,7 +351,9 @@ class Link {
     // 绑定link语法
     linkBind(node) {
         let attr = node.getAttribute("link")
-        attr = attr.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
+        if (this.dataGet(this.$data, attr) === undefined) {
+            attr = this.replaceViewTemplate(node, attr)
+        }
         if (attr == null) { return }
 
         // 判断tagName
@@ -351,7 +384,9 @@ class Link {
     // 绑定$class语法
     classBind(node) {
         let attr = node.getAttribute("$class")
-        attr = attr.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
+        if (this.dataGet(this.$data, attr) === undefined) {
+            attr = this.replaceViewTemplate(node, attr)
+        }
         this.viewSet({
             node: node, template: attr, props: { class: node.getAttribute("class") }, type: "class"
         })
@@ -361,15 +396,33 @@ class Link {
     // 绑定$style语法
     styleBind(node) {
         let attr = node.getAttribute("$style")
-        attr = attr.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
+        if (this.dataGet(this.$data, attr) === undefined) {
+            attr = this.replaceViewTemplate(node, attr)
+        }
         this.viewSet({ node: node, template: (node.getAttribute("style") || "") + attr, type: "style" })
         node.removeAttribute("$style")
     }
 
+    // 绑定其他属性
     attrBind(node, name, value) {
-        value = value.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
-        this.viewSet({ node: node, template: value, type: name.slice(1) })
+        if (this.dataGet(this.$data, value) === undefined) {
+            value = this.replaceViewTemplate(node, value)
+        }
         node.removeAttribute(name)
+        this.viewSet({ node: node, template: value, type: name.slice(1) })
+
+    }
+
+    replaceViewTemplate(node, value) {
+        while (node !== this.node) {
+            if (node.getAttribute('subType') === value) {
+                value = value.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
+
+                return value
+            }
+            node = node.parentNode
+        }
+        throw new Error(`Can not find data '${value}'`)
     }
 
     // 绑定event语法
@@ -386,7 +439,7 @@ class Link {
         // 将传参修改为实际数据
         let argArr = args.split(',')
         if (argArr.indexOf('index') > -1) {
-            argArr[argArr.indexOf('index')] = node.getAttribute('index')
+            argArr[argArr.indexOf('index')] = this.getIndex(node)
         }
         node.addEventListener(e, function () {
             if (argArr.indexOf('this') > -1) {
@@ -397,6 +450,16 @@ class Link {
             }
             _this[fn](...argArr)
         })
+    }
+
+    getIndex(node) {
+        while (node != this.node) {
+            if (node.getAttribute('index')) {
+                return node.getAttribute('index')
+            }
+            node = node.parentNode
+        }
+        throw new Error(`Can not find 'index'`)
     }
 
     /*
@@ -638,6 +701,7 @@ class Link {
             newCpn.aliveData = this.aliveData.$children[0]
             this.aliveData.$children.shift()
         }
+        this.$children = this.$children || []
         this.$children.push(newCpn)
     }
 

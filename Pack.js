@@ -5,7 +5,7 @@
         publicPath: 'src',
         entry: 'App',
         modules: ['Link', 'link-router'],
-        views: ['Game', 'Score', 'Img'],
+        views: ['Home', 'Img'],
         components: ['Cpn']
     }
 
