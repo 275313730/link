@@ -1,6 +1,9 @@
 "use strict";
 class Link {
     constructor(options) {
+        // 重写数组方法
+        Link.arrayReconstruct && Link.arrayReconstruct()
+
         // 检查传参
         this.checkOptions(options)
 
@@ -55,17 +58,16 @@ class Link {
 
     // 初始化
     init() {
-        // 重写数组方法
-        this.arrayReconstruct()
-
         // 将数据替换成aliveData(如果存在aliveData)
-        this.alive && this.dataReplace()
+        this.aliveData && this.dataReplace()
 
         // 执行data函数，将数据加入$data
         if (this.data) { this.$data = this.data() }
 
-        // 获取props和ref
+        // 获取props
         this.$parent && this.propsGet()
+
+        // 给父组件设置ref
         this.$parent && this.refSet()
 
         // 遍历$data并defineProperty
@@ -74,7 +76,7 @@ class Link {
         // 将methods中的函数加入$data
         this.methods && this.methodsExpose()
 
-        // 判断aliveData是否存在来决定是否执行mounted函数
+        // 判断alive来决定是否执行mounted函数
         !this.alive && this.mounted && this.mounted.call(this.$data)
 
         // 替换组件标签为模板内容
@@ -103,9 +105,8 @@ class Link {
     }
 
     // 数组方法改写
-    arrayReconstruct() {
-        let _this = this,
-            arrayProto = Array.prototype,
+    static arrayReconstruct() {
+        let arrayProto = Array.prototype,
             arrayMethods = Object.create(arrayProto),
             methodsList = ["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]
 
@@ -116,16 +117,14 @@ class Link {
                 const result = original.apply(this, args)
 
                 if (this.__ob__) {
-                    for (let key in this) {
-                        _this.defineProperty(_this, this, key, this[key])
-                    }
-                    _this.notify()
+                    this.notify()
                 }
 
                 // 返回值
                 return result
             }
         })
+        this.arrayReconstruct = null
     }
 
     // 销毁
@@ -190,13 +189,14 @@ class Link {
 
     // 遍历data
     dataTravel(data) {
-        data.__ob__ = true
         for (const key in data) {
             this.defineProperty(this, data, key, data[key])
             if (data[key] instanceof Object) {
                 this.dataTravel(data[key])
             }
         }
+        data.__ob__ = true
+        data.notify = this.notify.bind(this)
     }
 
     // 定义data的setter和getter
@@ -218,9 +218,12 @@ class Link {
     // 获取data的值
     dataGet(data, key) {
         const keyArr = key.split(".")
-        keyArr.forEach(key => {
+        for (const key of keyArr) {
             data = data[key]
-        })
+            if (data === undefined) {
+                return undefined
+            }
+        }
         return data
     }
 
@@ -335,7 +338,6 @@ class Link {
         node.setAttribute("dataType", dataType)
         node.setAttribute("subType", subType)
         this.viewSet({ node: node, template: dataType, props: { subType: subType, length: 1, nodeTemplate: newNode }, type: "each" })
-        this.notify()
     }
 
     // 绑定mustache语法
@@ -350,7 +352,7 @@ class Link {
     linkBind(node) {
         let attr = node.getAttribute("link")
         if (this.dataGet(this.$data, attr) === undefined) {
-            attr = this.replaceViewTemplate(node, attr)
+            attr = this.replaceAttr(node, attr)
         }
         if (attr == null) { return }
 
@@ -383,7 +385,7 @@ class Link {
     classBind(node) {
         let attr = node.getAttribute("$class")
         if (this.dataGet(this.$data, attr) === undefined) {
-            attr = this.replaceViewTemplate(node, attr)
+            attr = this.replaceAttr(node, attr)
         }
         this.viewSet({
             node: node, template: attr, props: { class: node.getAttribute("class") }, type: "class"
@@ -395,27 +397,29 @@ class Link {
     styleBind(node) {
         let attr = node.getAttribute("$style")
         if (this.dataGet(this.$data, attr) === undefined) {
-            attr = this.replaceViewTemplate(node, attr)
+            attr = this.replaceAttr(node, attr)
         }
         this.viewSet({ node: node, template: (node.getAttribute("style") || "") + attr, type: "style" })
         node.removeAttribute("$style")
     }
 
     // 绑定其他属性
-    attrBind(node, name, value) {
-        if (this.dataGet(this.$data, value) === undefined) {
-            value = this.replaceViewTemplate(node, value)
+    attrBind(node, name, attr) {
+        if (this.dataGet(this.$data, attr) === undefined) {
+            attr = this.replaceAttr(node, attr)
         }
         node.removeAttribute(name)
-        this.viewSet({ node: node, template: value, type: name.slice(1) })
+        this.viewSet({ node: node, template: attr, type: name.slice(1) })
 
     }
 
-    replaceViewTemplate(node, value) {
+    replaceAttr(node, value) {
         while (node !== this.node) {
-            if (node.getAttribute('subType') === value) {
-                value = value.replace(node.getAttribute('subType'), node.getAttribute('dataType') + '.' + node.getAttribute('index'))
-
+            let subType = node.getAttribute('subType')
+            if (subType && value.indexOf(subType) > -1) {
+                let dataType = node.getAttribute('dataType'),
+                    idnex = node.getAttribute('index')
+                value = value.replace(subType, dataType + '.' + idnex)
                 return value
             }
             node = node.parentNode

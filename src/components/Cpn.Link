@@ -1,6 +1,6 @@
 <template id="cpn">
     <div class="cpn">
-        <img each="src of props.srcs" @click="jump(index)" $src="src"></img>
+        <img each="src of props.srcs" @click="jump(index)" $src="src.url"></img>
     </div>
 </template>
 
@@ -10,7 +10,8 @@
         template: cpn,
         methods: {
             jump(index) {
-                Link.$router.$push('img', this.props.srcs[index].slice(this.props.srcs[index].lastIndexOf('/')))
+                const url = this.props.srcs[index].url
+                Link.$router.$push('img', url.slice(url.lastIndexOf('/')))
             }
         }
     })

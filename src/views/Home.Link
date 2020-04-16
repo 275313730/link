@@ -11,7 +11,7 @@
         el: 'home',
         data() {
             return {
-                srcs: ["src/imgs/pic.png", "src/imgs/test.jpg"]
+                srcs: [{ name: 'pic', url: "src/imgs/pic.png" }, { name: 'test', url: "src/imgs/test.jpg" }]
             }
         },
         methods: {
