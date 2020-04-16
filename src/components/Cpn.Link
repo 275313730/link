@@ -1,6 +1,9 @@
 <template id="cpn">
     <div class="cpn">
-        <img each="src of props.srcs" @click="jump(index)" $src="src.url"></img>
+        <div each="src of props.srcs">
+            <p>{{src.name}}</p>
+            <img @click="jump(index)" $src="src.url"></img>
+        </div>
     </div>
 </template>
 
