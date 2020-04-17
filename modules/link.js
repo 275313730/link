@@ -50,6 +50,10 @@ class Link {
                 // 用数组原方法处理
                 const result = original.apply(this, args)
 
+                if (this.__ob__ && (method === 'push' || method === 'unshift' || method === 'splice')) {
+                    this.dataTravel(this)
+                }
+
                 // 判读是否$data中的数据
                 this.__ob__ && this.notify()
 
@@ -175,17 +179,21 @@ class Link {
     // 遍历data
     dataTravel(data) {
         for (const key in data) {
-            this.defineProperty(this, data, key, data[key])
+            this.defineProperty(data, key, data[key])
             if (data[key] instanceof Object) {
                 this.dataTravel(data[key])
             }
         }
         data.__ob__ = true
-        data.notify = this.notify.bind(this)
+        if (data instanceof Array) {
+            data.notify = this.notify.bind(this)
+            data.dataTravel = this.dataTravel.bind(this)
+        }
     }
 
     // 定义data的setter和getter
-    defineProperty(_this, data, key, value) {
+    defineProperty(data, key, value) {
+        const _this = this
         Object.defineProperty(data, key, {
             get() {
                 return value
@@ -193,6 +201,9 @@ class Link {
             set(newValue) {
                 if (value === newValue) { return }
                 value = newValue
+                if (newValue instanceof Object) {
+                    _this.dataTravel(newValue)
+                }
                 _this.notify(key)
             },
             enumerable: typeof (data) === "object" ? true : false,

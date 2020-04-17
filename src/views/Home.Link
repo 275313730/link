@@ -16,7 +16,7 @@
         },
         methods: {
             add(index) {
-                this.srcs.push(this.srcs[index])
+                this.srcs.push(Object.assign({}, this.srcs[index]))
             }
         }
     }
