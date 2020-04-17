@@ -22,12 +22,8 @@ class Link {
         this.beforeDestroy = Object.freeze(options.beforeDestroy) || null
         this.destroyed = Object.freeze(options.destroyed) || null
 
-        // 组件
+        // 父组件
         this.$parent = options.parent || null
-        this.$children = []
-
-        // 视图
-        this.views = []
 
         // 路由
         this.router = options.router || null
@@ -41,66 +37,6 @@ class Link {
     /*
         Common Module
     */
-
-    // 检查传入参数
-    checkOptions(options) {
-        if (options.el == null) {
-            if (options.template == null) {
-                throw new Error(`Property "el" or "template" is not defined`)
-            }
-        } else if (document.getElementById(options.el) == null) {
-            throw new Error(`Can not find element "${options.el}"`)
-        }
-    }
-
-    // 初始化
-    init() {
-        // 将数据替换成aliveData(如果存在aliveData)
-        this.aliveData && this.dataReplace()
-
-        // 执行data函数，将数据加入$data
-        this.$data = this.data ? this.data() : {}
-
-        // 获取props
-        this.$parent && this.propsGet()
-
-        // 给父组件设置ref
-        this.$parent && this.refSet()
-
-        // 遍历$data并defineProperty
-        this.$data && this.dataTravel(this.$data)
-
-        // 将methods中的函数加入$data
-        this.methods && this.methodsExpose()
-
-        // 判断alive来决定是否执行mounted函数
-        !this.alive && this.mounted && this.mounted.call(this.$data)
-
-        // 替换组件标签为模板内容
-        this.template && this.replaceCpnHTML()
-
-        // 遍历组件节点并进行view绑定
-        this.nodeTravel(this.node)
-
-        // 创建子组件实例
-        this.createCpns()
-
-        // 传入parent和children组件
-        this.$data.$parent = this.$parent
-        this.$data.$children = this.$children
-
-        // 传入router
-        if (this.router) {
-            this.router.el = this.el
-            Link.$router = new Router(this.router)
-        }
-
-        // 刷新页面
-        this.$data && this.notify()
-
-        // 刷新页面后调用一次updated
-        this.updated && this.updated.call(this.$data)
-    }
 
     // 数组方法改写
     static arrayReconstruct() {
@@ -124,21 +60,77 @@ class Link {
         this.arrayReconstruct = null
     }
 
+    // 检查传入参数
+    checkOptions(options) {
+        if (options.el == null) {
+            if (options.template == null) {
+                throw new Error(`Property "el" or "template" is not defined`)
+            }
+        } else if (document.getElementById(options.el) == null) {
+            throw new Error(`Can not find element "${options.el}"`)
+        }
+    }
+
+    // 初始化
+    init() {
+        // 将数据替换成aliveData(如果存在aliveData)
+        this.aliveData && this.dataReplace()
+
+        // 初始化$data
+        this.$data = this.data ? this.data() : {}
+
+        // 获取父组件传入的props
+        this.$parent && this.propsGet()
+
+        // 给父组件设置ref
+        this.$parent && this.refsSet()
+
+        // 遍历$data并定义get和set
+        this.$data && this.dataTravel(this.$data)
+
+        // 将methods中的函数加入$data
+        this.methods && this.methodsExpose()
+
+        // 判断alive来决定是否执行mounted函数
+        !this.alive && this.mounted && this.mounted.call(this.$data)
+
+        // 替换组件标签为模板内容
+        this.template && this.replaceCpnHTML()
+
+        // 遍历组件节点并进行view绑定
+        this.nodeTravel(this.node)
+
+        // 创建子组件实例
+        this.$children && this.createCpns()
+
+        // 传入parent和children组件
+        this.$data.$parent = this.$parent
+        this.$data.$children = this.$children
+
+        // 传入router
+        if (this.router) {
+            this.router.el = this.el
+            Link.$router = new Router(this.router)
+        }
+
+        // 刷新页面
+        this.$data && this.notify()
+
+        // 刷新页面后调用一次updated
+        this.updated && this.updated.call(this.$data)
+    }
+
     // 销毁
     destroy() {
         // 销毁前
         this.beforeDestroy && this.beforeDestroy.call(this.$data)
 
-        // 销毁$data,views和其他生命钩子函数
-        this.views = []
+        // 销毁views和$data
+        this.views = null
         this.$data = null
-        this.mounted = null
-        this.updated = null
-        this.beforeDestroy = null
 
         // 销毁后
         this.destroyed && this.destroyed.call(this.$data)
-        this.destroyed = null
     }
 
     /*
@@ -156,7 +148,7 @@ class Link {
     }
 
     // refsGet
-    refSet() {
+    refsSet() {
         for (const attr of this.node.attributes) {
             if (attr.name === 'ref') {
                 this.$parent.$refs = this.$parent.$refs || {}
@@ -238,6 +230,7 @@ class Link {
 
     // 在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
     viewSet(options) {
+        this.views = this.views || []
         // 判断节点是否存在
         for (const view of this.views) {
             if (view.node === options.node && view.type === options.type) {
@@ -315,19 +308,23 @@ class Link {
             subType = matches[1].trim(),
             dataType = matches[2].trim()
         node.removeAttribute("each")
+
         // 复制一个新的节点
         let newNode = node.cloneNode()
         newNode.innerHTML = node.innerHTML
+
         // 替换HTML的mustache
         let innerHTML = node.innerHTML
         while (innerHTML != innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)) {
             innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${dataType}.0}}`)
         }
         node.innerHTML = innerHTML
-        // 设置index
+
+        // 设置临时attr
         node.setAttribute("index", 0)
         node.setAttribute("dataType", dataType)
         node.setAttribute("subType", subType)
+
         this.viewSet({
             node: node,
             template: dataType,
@@ -409,13 +406,12 @@ class Link {
 
     // 绑定其他属性
     attrBind(node, name, value) {
-        node.removeAttribute(name)
         this.viewSet({
             node: node,
             template: this.replaceVarName(node, value),
             type: name.slice(1)
         })
-
+        node.removeAttribute(name)
     }
 
     // 替换节点属性的变量名
@@ -481,6 +477,7 @@ class Link {
 
     // 通知分发
     notify(key) {
+        if (this.views == null) { return }
         this.views.forEach(view => {
             if (key != null && view.template.match(key) == null) { return }
             switch (view.type) {
@@ -517,7 +514,7 @@ class Link {
             delNode(view, value)
         }
         this.viewSet(view)
-        this.notify()
+        this.notify(view.template)
 
         // 节点添加
         function addNode(view, value) {
@@ -634,7 +631,7 @@ class Link {
         })
         view.node.className = className
 
-        // 获取$class语法的值
+        // 获取$class的值
         function getClass(cs) {
             let boolean,
                 thisClassName = "",
@@ -711,6 +708,7 @@ class Link {
 
     // 添加子组件
     addCpn(component, child) {
+        this.$children = this.$children || []
         let newCpn = Object.assign({}, component)
         newCpn.parent = this.$data
         newCpn.node = child
