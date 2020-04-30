@@ -1,5 +1,4 @@
-// import和模板解析的替代方案
-// 根据项目内容修改files内容
+// 模板解析根据项目内容修改files内容
 (function () {
     const files = {
         publicPath: 'src',

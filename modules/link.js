@@ -40,9 +40,9 @@ class Link {
 
     // 数组方法改写
     static arrayReconstruct() {
-        let arrayProto = Array.prototype,
-            arrayMethods = Object.create(arrayProto),
-            methodsList = ["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]
+        const arrayProto = Array.prototype
+        const arrayMethods = Object.create(arrayProto)
+        const methodsList = ["push", "pop", "shift", "unshift", "splice", "sort", "reverse"]
 
         methodsList.forEach(method => {
             const original = arrayMethods[method]
@@ -50,6 +50,7 @@ class Link {
                 // 用数组原方法处理
                 const result = original.apply(this, args)
 
+                // 重新响应化数据
                 if (this.__ob__ && (method === 'push' || method === 'unshift' || method === 'splice')) {
                     this.dataTravel(this)
                 }
@@ -61,7 +62,8 @@ class Link {
                 return result
             }
         })
-        this.arrayReconstruct = null
+
+        delete this.arrayReconstruct
     }
 
     // 检查传入参数
@@ -122,6 +124,8 @@ class Link {
 
         // 刷新页面后调用一次updated
         this.updated && this.updated.call(this.$data)
+
+        delete this.init
     }
 
     // 销毁
@@ -141,7 +145,7 @@ class Link {
         Data Module
     */
 
-    // propsGet
+    // 获取父组件传值
     propsGet() {
         for (const attr of this.node.attributes) {
             if (attr.name.indexOf('~') > -1) {
@@ -151,7 +155,7 @@ class Link {
         }
     }
 
-    // refsGet
+    // 获取子组件引用值
     refsSet() {
         for (const attr of this.node.attributes) {
             if (attr.name === 'ref') {
@@ -184,7 +188,11 @@ class Link {
                 this.dataTravel(data[key])
             }
         }
+
+        // 给data添加ob属性
         data.__ob__ = true
+
+        // 给数组添加通知和遍历方法
         if (data instanceof Array) {
             data.notify = this.notify.bind(this)
             data.dataTravel = this.dataTravel.bind(this)
@@ -194,6 +202,7 @@ class Link {
     // 定义data的setter和getter
     defineProperty(data, key, value) {
         const _this = this
+
         Object.defineProperty(data, key, {
             get() {
                 return value
@@ -240,7 +249,7 @@ class Link {
     }
 
     // 在绑定语法时调用，收集包含语法的节点，用于做数据和页面的对接 
-    viewSet(options) {
+    viewAdd(options) {
         this.views = this.views || []
         // 判断节点是否存在
         for (const view of this.views) {
@@ -255,21 +264,30 @@ class Link {
     nodeTravel(node) {
         // 匹配语法
         if (node.nodeType === 1) {
+            // 判断是否子组件
             if (Link.components && this.isCpnNode(node)) {
                 return
             }
+
+            // 属性匹配
             this.attrMatch(node)
+
+            // 事件匹配
             this.eventMatch(node)
+
+            // 遍历子节点
             if (node.childNodes != null) {
                 for (let child of node.childNodes) {
                     this.nodeTravel(child)
                 }
             }
+
             // 移除node上的临时属性
             node.removeAttribute("index")
             node.removeAttribute('subType')
             node.removeAttribute('dataType')
         } else if (node.nodeType === 3) {
+            // mustache语法绑定
             this.mustacheBind(node)
         }
     }
@@ -285,6 +303,7 @@ class Link {
             this.eachBind(node)
         }
 
+        // 遍历节点属性
         for (const attr of node.attributes) {
             switch (attr.name) {
                 case "link":
@@ -305,15 +324,16 @@ class Link {
     // 匹配事件语法
     eventMatch(node) {
         for (const attr of node.attributes) {
-            if (attr.name.indexOf("@") === -1) { continue }
-            this.eventBind(node, attr.name)
-            node.removeAttribute(attr.name)
+            if (attr.name.indexOf("@") > -1) {
+                this.eventBind(node, attr.name)
+                node.removeAttribute(attr.name)
+            }
         }
     }
 
-    // 绑定@for语法
+    // 绑定each语法
     eachBind(node) {
-        // 获取@for内容
+        // 获取语法内容
         let attr = node.getAttribute("each"),
             matches = attr.match(/(.+)of(.+)/),
             subType = matches[1].trim(),
@@ -331,12 +351,13 @@ class Link {
         }
         node.innerHTML = innerHTML
 
-        // 设置临时attr
+        // 设置临时属性
         node.setAttribute("index", 0)
         node.setAttribute("dataType", dataType)
         node.setAttribute("subType", subType)
 
-        this.viewSet({
+        // 添加到视图中
+        this.viewAdd({
             node: node,
             template: dataType,
             props: {
@@ -350,14 +371,18 @@ class Link {
 
     // 绑定mustache语法
     mustacheBind(node) {
-        let template = node.data,
-            mustaches = template.match(/\{\{(.+?)\}\}/g)
+        let template = node.data
+        const mustaches = template.match(/\{\{(.+?)\}\}/g)
         if (mustaches == null) { return }
+
+        // 遍历mustaches
         mustaches.forEach(mustache => {
             mustache = mustache.replace('{{', '').replace('}}', '')
             template = template.replace(mustache, this.replaceVarName(node, mustache, 'mustache'))
         })
-        this.viewSet({
+
+        // 添加到视图中
+        this.viewAdd({
             node: node,
             template: template,
             type: "mustache"
@@ -368,10 +393,12 @@ class Link {
     linkBind(node, value) {
         let template = this.replaceVarName(node, value)
 
-        // 判断tagName
+        // input双向绑定
         if (node.tagName === "INPUT") {
             let data = this.$data
-            node.addEventListener("INPUT", () => {
+
+            // 监听input事件
+            node.addEventListener("input", () => {
                 let keyArr = template.split(".")
                 for (const key in keyArr) {
                     if (key === keyArr.length - 1) {
@@ -383,18 +410,21 @@ class Link {
             })
         }
 
-        this.viewSet({
+        // 添加到视图中
+        this.viewAdd({
             node: node,
             template: `{{${template}}}`,
             type: "link"
         })
-        node.removeAttribute("link")
 
+        // 移除节点属性
+        node.removeAttribute("link")
     }
 
     // 绑定$class语法
     classBind(node, value) {
-        this.viewSet({
+        // 添加到视图中
+        this.viewAdd({
             node: node,
             template: this.replaceVarName(node, value),
             props: {
@@ -402,83 +432,122 @@ class Link {
             },
             type: "class"
         })
+
+        // 移除节点属性
         node.removeAttribute("$class")
     }
 
     // 绑定$style语法
     styleBind(node, value) {
-        this.viewSet({
+        // 添加到视图中
+        this.viewAdd({
             node: node,
             template: (node.getAttribute("style") || "") + this.replaceVarName(node, value),
             type: "style"
         })
+
+        // 移除节点属性
         node.removeAttribute("$style")
     }
 
     // 绑定其他属性
     attrBind(node, name, value) {
-        this.viewSet({
+        // 添加到视图中
+        this.viewAdd({
             node: node,
             template: this.replaceVarName(node, value),
             type: name.slice(1)
         })
+
+        // 移除节点属性
         node.removeAttribute(name)
     }
 
     // 替换节点属性的变量名
     replaceVarName(node, value, type) {
+        // 如果值为null返回null
         if (value == null) { return null }
+
+        // 如果存在变量则返回获取的值
         if (this.dataGet(this.$data, value) !== undefined) { return value }
+
+        // 如果是mustache语法将节点改变为父节点(因为mustache语法是在textnode上)
         if (type === 'mustache') {
             node = node.parentNode
         }
+
+        // 向上寻找each语法添加的临时属性
         while (node !== this.node) {
-            let subType = node.getAttribute('subType')
+            const subType = node.getAttribute('subType')
+            const dataType = node.getAttribute('dataType')
+            const index = node.getAttribute('index')
+
             if (subType && value.indexOf(subType) > -1) {
-                let dataType = node.getAttribute('dataType'),
-                    index = node.getAttribute('index')
-                return value.replace(subType, dataType + '.' + index)
+                // 替换变量名
+                value = value.replace(subType, dataType + '.' + index)
+
+                // 替换后存在变量则返回值，不存在则继续往上查找(多层each)
+                if (this.dataGet(this.$data, value) !== undefined) {
+                    return value
+                }
             }
+
             node = node.parentNode
         }
+
         throw new Error(`Can not find data '${value}'`)
     }
 
 
     // 绑定event语法
     eventBind(node, attr) {
-        let _this = this.$data,
-            matches = node.getAttribute(attr).match(/(.+)\((.*)\)/),
-            fn = matches[1],
-            args = matches[2]
+        const _this = this.$data
+        const matches = node.getAttribute(attr).match(/(.+)\((.*)\)/)
+        const [_, fn, args] = matches
+
+        // 判断是否存在方法
         if (!_this[fn]) {
             throw new Error(`'${fn}' is not defined`)
         }
+
+        // 去除前缀@
         attr = attr.slice(1)
 
-        // 将传参修改为实际数据
+        // 分隔传参
         let argArr = args.split(',')
+
+        // 判断是否传入index
         if (argArr.indexOf('index') > -1) {
             argArr[argArr.indexOf('index')] = this.getIndex(node)
         }
+
+        // 监听事件
         node.addEventListener(attr, function () {
+            // 判断是否传入this
             if (argArr.indexOf('this') > -1) {
                 argArr[argArr.indexOf('this')] = this
             }
+
+            // 判断是否传入event
             if (argArr.indexOf('event') > -1) {
                 argArr[argArr.indexOf('event')] = event
             }
+
+            // 执行方法
             _this[fn](...argArr)
         })
     }
 
+    // 获取索引
     getIndex(node) {
+        // 向上寻找each语法添加的index
         while (node != this.node) {
             if (node.getAttribute('index')) {
                 return node.getAttribute('index')
             }
             node = node.parentNode
         }
+
         throw new Error(`Can't use 'index' without 'each' grammer`)
     }
 
@@ -489,8 +558,12 @@ class Link {
     // 通知分发
     notify(key) {
         if (this.views == null) { return }
+
         this.views.forEach(view => {
+            // 存在键名但没有匹配键名的模板时返回
             if (key != null && view.template.match(key) == null) { return }
+
+            // 根据视图类型渲染
             switch (view.type) {
                 case "each":
                     this.eachRender(view)
@@ -510,6 +583,8 @@ class Link {
                 default:
                     this.attrRender(view)
             }
+
+            // 视图改变后触发updated钩子函数
             this.updated && this.updated.call(this.$data)
         })
     }
@@ -517,37 +592,47 @@ class Link {
     // 渲染页面节点(each语法)
     eachRender(view) {
         const _this = this
-        let value = this.dataGet(this.$data, view.template)
+        const value = this.dataGet(this.$data, view.template)
+
+        // 如果数组长度没有变化则不修改节点
         if (value.length === view.props.length) { return }
+
+        // 根据数组长度变化增减节点
         if (value.length > view.props.length) {
             addNode(view, value)
         } else if (value.length < view.props.length) {
             delNode(view, value)
         }
-        this.viewSet(view)
+
+        this.viewAdd(view)
         this.notify(view.template)
 
         // 节点添加
         function addNode(view, value) {
             while (value.length > view.props.length) {
                 // 复制节点
-                let nodeTemplate = view.props.nodeTemplate,
-                    newNode = nodeTemplate.cloneNode()
+                let nodeTemplate = view.props.nodeTemplate
+                let newNode = nodeTemplate.cloneNode()
                 newNode.innerHTML = nodeTemplate.innerHTML
+
                 // 插入节点
                 if (view.node.nextElementSibling) {
                     view.node.parentNode.insertBefore(newNode, view.node.nextElementSibling)
                 } else {
                     view.node.parentNode.appendChild(newNode)
                 }
+
                 // 更新当前节点
                 view.node = newNode
                 replaceNodeHTML(view)
+
                 // 设置attr
                 view.node.setAttribute("dataType", view.template)
                 view.node.setAttribute("subType", view.props.subType)
                 view.node.setAttribute("index", view.props.length)
                 view.props.length++
+
+                // 刷新视图并遍历新增节点的子节点
                 refreshView(view)
                 _this.nodeTravel(view.node)
             }
@@ -556,19 +641,24 @@ class Link {
         // 节点减少
         function delNode(view, value) {
             while (value.length < view.props.length) {
-                refreshView(view)
+                // 删减节点
                 let prevNode = view.node.previousSibling
                 view.node.parentNode.removeChild(view.node)
                 view.node = prevNode
                 view.props.length--
+
+                // 刷新视图
+                refreshView(view)
             }
         }
 
         // 替换节点内容
         function replaceNodeHTML(view) {
-            let innerHTML = view.node.innerHTML,
-                subType = view.props.subType,
-                length = view.props.length
+            let innerHTML = view.node.innerHTML
+            const subType = view.props.subType
+            const length = view.props.length
+
+            // 替换节点中的mustache语法
             while (innerHTML != innerHTML.replace(`{{${subType}}}`, `{{${view.template}.${length}}}`)
             ) {
                 innerHTML = innerHTML.replace(`{{${subType}}}`, `{{${view.template}.${length}}}`)
@@ -585,8 +675,10 @@ class Link {
     }
 
     textRender(view) {
-        const _this = this,
-            text = replaceText(view)
+        const _this = this
+        const text = replaceText(view)
+
+        // 判断视图类型
         if (view.type === "link") {
             if (view.node.nodeName === "INPUT") {
                 view.node.value = text
@@ -599,30 +691,36 @@ class Link {
 
         // 替换模板内容
         function replaceText(view) {
-            let text = view.template,
-                mustaches = text.match(/\{\{(.+?)\}\}/g)
+            let text = view.template
+            const mustaches = text.match(/\{\{(.+?)\}\}/g)
+
             mustaches.forEach(mustache => {
-                let dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split("+"),
-                    value = expressionGet(dataTypes)
+                const dataTypes = mustache.match(/\{\{(.*)\}\}/)[1].split("+")
+                const value = expressionGet(dataTypes)
+
                 if (value == null) {
                     text = text.replace(mustache, '')
                 } else {
                     text = text.replace(mustache, value)
                 }
             })
+
             return text
         }
 
         // 获取表达式的值
         function expressionGet(keys) {
             let value = null
+
             keys.forEach(key => {
                 let _value = _this.dataGet(_this.$data, key)
+
                 if (_value === undefined) {
                     _value = isNaN(Number(key)) ? key : Number(key)
                 }
                 value = (value == null) ? _value : value + _value
             })
+
             return value
         }
     }
@@ -631,8 +729,9 @@ class Link {
     classRender(view) {
         const _this = this
         //拆分class
-        let classArr = view.template.split(","),
-            className = view.props.class
+        let classArr = view.template.split(",")
+        let className = view.props.class
+
         classArr.forEach(cs => {
             let { thisClassName, boolean } = getClass(cs)
             //修改className
@@ -640,27 +739,32 @@ class Link {
                 className += ` ${thisClassName}`
             }
         })
+
         view.node.className = className
 
         // 获取$class的值
         function getClass(cs) {
-            let boolean,
-                thisClassName = "",
-                matches = cs.split(":")
+            let boolean
+            let thisClassName = ""
+            const matches = cs.split(":")
+
             // 判断是否为对象语法
             // 对象语法的key=className,value=boolean
             // 非对象语法直接获取变量值作为className,boolean根据className取值
             if (matches.length === 1) {
                 // 判断是否为函数
-                let fn = cs.match(/(.*)\(.*\)/)
+                const fn = cs.match(/(.*)\(.*\)/)
+
                 thisClassName = fn ? _this[fn[1]](fn[2]) : _this.dataGet(_this.$data, cs)
                 boolean = thisClassName ? true : false
             } else {
+                const dataType = matches[1].trim()
+                const fn = dataType.match(/(.*)\(.*\)/)
+                
                 thisClassName = matches[0].trim()
-                let dataType = matches[1].trim(),
-                    fn = dataType.match(/(.*)\(.*\)/)
                 boolean = fn ? _this[fn[1]](fn[2]) : _this.dataGet(_this.$data, dataType)
             }
+
             return { thisClassName, boolean }
         }
     }
@@ -669,12 +773,16 @@ class Link {
     styleRender(view) {
         // 拆分style
         let styleArr = view.template.split(";")
+
         styleArr.forEach(style => {
+            // style为null或空字符串则返回
             if (style == null || style === "") { return }
-            let matches = style.split(":"),
-                styleName = matches[0].trim(),
-                dataType = matches[1],
-                fn = dataType.match(/(.*)\(.*\)/)
+
+            const matches = style.split(":")
+            const styleName = matches[0].trim()
+            const dataType = matches[1]
+            const fn = dataType.match(/(.*)\(.*\)/)
+
             // 判断是否为函数
             view.node.style[styleName] = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, dataType)
         })
@@ -682,8 +790,9 @@ class Link {
 
     // 
     attrRender(view) {
-        let attr = view.template,
-            fn = attr.match(/(.*)\(.*\)/)
+        const attr = view.template
+        const fn = attr.match(/(.*)\(.*\)/)
+
         view.node[view.type] = fn ? this[fn[1]](fn[2]) : this.dataGet(this.$data, attr)
     }
 
@@ -695,6 +804,7 @@ class Link {
     static component(options) {
         Link.components = Link.components || []
         let node = options.template
+
         if (node instanceof Object) {
             if (node == null) {
                 throw new Error(`Can"t find template '${options.template}"`)
@@ -702,32 +812,43 @@ class Link {
             options.template = node.innerHTML
             node.parentNode.removeChild(node)
         }
+
         Link.components.push(options)
     }
 
     // 检查是否为Component
     isCpnNode(child) {
         const tagName = child.tagName.toLowerCase()
+
         for (const cpn of Link.components) {
             if (cpn.name === tagName) {
                 this.addCpn(cpn, child)
                 return true
             }
         }
+
         return false
     }
 
     // 添加子组件
-    addCpn(component, child) {
+    addCpn(component, childNode) {
+        // 初始化子组件
         this.$children = this.$children || []
+
+        // 创建新子组件
         let newCpn = Object.assign({}, component)
+
+        // 绑定组件关系
         newCpn.parent = this.$data
-        newCpn.node = child
+        newCpn.node = childNode
+
+        // router的alive功能
         if (this.aliveData && this.aliveData.$children) {
             newCpn.alive = true
             newCpn.aliveData = this.aliveData.$children[0]
             this.aliveData.$children.shift()
         }
+
         this.$children.push(newCpn)
     }
 
