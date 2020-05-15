@@ -341,8 +341,7 @@ class Link {
         node.removeAttribute("each")
 
         // 复制一个新的节点
-        let newNode = node.cloneNode()
-        newNode.innerHTML = node.innerHTML
+        let newNode = node.cloneNode(true)
 
         // 替换HTML的mustache
         let innerHTML = node.innerHTML
@@ -612,8 +611,7 @@ class Link {
             while (value.length > view.props.length) {
                 // 复制节点
                 let nodeTemplate = view.props.nodeTemplate
-                let newNode = nodeTemplate.cloneNode()
-                newNode.innerHTML = nodeTemplate.innerHTML
+                let newNode = nodeTemplate.cloneNode(true)
 
                 // 插入节点
                 if (view.node.nextElementSibling) {
