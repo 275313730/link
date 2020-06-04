@@ -1,4 +1,4 @@
-// 模板解析根据项目内容修改files内容
+// 解析Link单文件组件
 (function () {
     const files = {
         publicPath: 'src',

@@ -1,7 +1,7 @@
 <template id='home'>
     <div class="home">
-        <button @click="add(0)">add pic 1</button>
-        <button @click="add(1)">add pic 2</button>
+        <button @click="add()">add</button>
+        <button @click="del()">del</button>
         <cpn ~srcs="srcs"></cpn>
     </div>
 </template>
@@ -15,8 +15,11 @@
             }
         },
         methods: {
-            add(index) {
-                this.srcs.push(Object.assign({}, this.srcs[index]))
+            add() {
+                this.srcs.push(this.srcs[0])
+            },
+            del() {
+                this.srcs.pop()
             }
         }
     }
