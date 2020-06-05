@@ -20,11 +20,11 @@
 
             // 重新响应化数据
             if (this.__ob__ && (method === "push" || method === "unshift" || method === "splice")) {
-                this.__ob__.dataTravel(this, this.__ob__.keyString);
+                dataTravel.call(this.__ob__.vm, this, this.__ob__.keyString);
             }
 
             // 判读是否$data中的数据
-            this.__ob__ && this.__ob__.notify(this.__ob__.keyString);
+            this.__ob__ && notify.call(this.__ob__.vm, this.__ob__.keyString);
 
             // 返回值
             return result;
@@ -204,8 +204,7 @@
             if (data[key] instanceof Array) {
                 data[key].__ob__ = {
                     keyString: isNullString(keyString) ? key : keyString + "." + key,
-                    notify: notify.bind(this),
-                    dataTravel: dataTravel.bind(this)
+                    vm: this
                 };
             }
             if (data[key] instanceof Object) {
@@ -277,7 +276,7 @@
     }
 
     // node遍历
-    function nodeTravel(node, belong) {
+    function nodeTravel(node, root) {
         // 匹配语法
         if (node.nodeType === 1) {
             // 判断是否子组件
@@ -288,15 +287,15 @@
             var hasEachAttr = node.getAttribute("each")
 
             // 属性匹配
-            attrMatch.call(this, node, belong);
+            attrMatch.call(this, node, root);
 
             // 事件匹配
-            eventMatch.call(this, node, belong);
+            eventMatch.call(this, node, root);
 
             // 遍历子节点
             if (node.childNodes != null && !hasEachAttr) {
                 for (var child of node.childNodes) {
-                    nodeTravel.call(this, child, belong);
+                    nodeTravel.call(this, child, root);
                 }
             }
 
@@ -306,19 +305,19 @@
             node.removeAttribute("dataType");
         } else if (node.nodeType === 3) {
             // mustache语法绑定
-            mustacheBind.call(this, node, belong);
+            mustacheBind.call(this, node, root);
         }
     }
 
     // 匹配标签属性
-    function attrMatch(node, belong) {
+    function attrMatch(node, root) {
         // 先执行each语法修改页面节点
         if (node.getAttribute("each")) {
             // 判断是否为根节点
             if (node === this.node) {
                 throw new Error(`Can not use "each" in the root element`);
             }
-            eachBind.call(this, node, belong);
+            eachBind.call(this, node, root);
             return;
         }
 
@@ -326,16 +325,16 @@
         for (var attr of node.attributes) {
             switch (attr.name) {
                 case "link":
-                    linkBind.call(this, node, attr.value, belong);
+                    linkBind.call(this, node, attr.value, root);
                     break;
                 case "$class":
-                    classBind.call(this, node, attr.value, belong);
+                    classBind.call(this, node, attr.value, root);
                     break;
                 case "$style":
-                    styleBind.call(this, node, attr.value, belong);
+                    styleBind.call(this, node, attr.value, root);
                     break;
                 default:
-                    attr.name.indexOf("$") > -1 && attrBind.call(this, node, attr.name, attr.value, belong);
+                    attr.name.indexOf("$") > -1 && attrBind.call(this, node, attr.name, attr.value, root);
             }
         }
     }
@@ -351,7 +350,7 @@
     }
 
     // 绑定each语法
-    function eachBind(node, belong) {
+    function eachBind(node, root) {
         // 获取语法内容
         var attr = node.getAttribute("each");
         var matches = attr.match(/(.+)of(.+)/);
@@ -384,14 +383,14 @@
                 nodeTemplate: newNode
             },
             type: "each",
-            belong
+            root
         });
 
         nodeTravel.call(this, node, node)
     }
 
     // 绑定mustache语法
-    function mustacheBind(node, belong) {
+    function mustacheBind(node, root) {
         var template = node.data;
         var mustaches = template.match(/\{\{(.+?)\}\}/g);
         if (mustaches == null) { return };
@@ -407,12 +406,12 @@
             node,
             template,
             type: "mustache",
-            belong
+            root
         });
     }
 
     // 绑定link语法
-    function linkBind(node, value, belong) {
+    function linkBind(node, value, root) {
         var template = replaceVarName.call(this, node, value);
 
         // input双向绑定
@@ -437,7 +436,7 @@
             node,
             template: `{{${template}}}`,
             type: "link",
-            belong
+            root
         });
 
         // 移除节点属性
@@ -445,7 +444,7 @@
     }
 
     // 绑定$class语法
-    function classBind(node, value, belong) {
+    function classBind(node, value, root) {
         // 添加到视图中
         viewAdd.call(this, {
             node,
@@ -454,7 +453,7 @@
                 class: node.getAttribute("class")
             },
             type: "class",
-            belong
+            root
         });
 
         // 移除节点属性
@@ -462,13 +461,13 @@
     }
 
     // 绑定$style语法
-    function styleBind(node, value, belong) {
+    function styleBind(node, value, root) {
         // 添加到视图中
         viewAdd.call(this, {
             node,
             template: (node.getAttribute("style") || "") + this.replaceVarName(node, value),
             type: "style",
-            belong
+            root
         });
 
         // 移除节点属性
@@ -476,13 +475,13 @@
     }
 
     // 绑定其他属性
-    function attrBind(node, name, value, belong) {
+    function attrBind(node, name, value, root) {
         // 添加到视图中
         viewAdd.call(this, {
             node,
             template: replaceVarName.call(this, node, value),
             type: name.slice(1),
-            belong
+            root
         });
 
         // 移除节点属性
@@ -695,7 +694,7 @@
         // 更新视图
         function refreshView(thisView) {
             vm.views = vm.views.filter(view => {
-                return view.belong !== thisView.node;
+                return view.root !== thisView.node;
             });
         }
     }
